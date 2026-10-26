@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 using PDFViewer.App.Controls;
+using PDFViewer.Core.Annotations;
 using PDFViewer.Core.Layout;
 using PDFViewer.Core.Pdf;
 
@@ -21,7 +22,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyPropertyChangedFor(nameof(PageCount), nameof(IsDocumentOpen), nameof(Title), nameof(CurrentPageNumber))]
     [NotifyCanExecuteChangedFor(nameof(ZoomInCommand), nameof(ZoomOutCommand), nameof(ActualSizeCommand),
         nameof(FitWidthCommand), nameof(FitPageCommand), nameof(NextPageCommand), nameof(PreviousPageCommand),
-        nameof(FirstPageCommand), nameof(LastPageCommand), nameof(TogglePresentationCommand))]
+        nameof(FirstPageCommand), nameof(LastPageCommand), nameof(TogglePresentationCommand),
+        nameof(SelectToolCommand), nameof(PenToolCommand), nameof(EraserToolCommand))]
     private PdfDocument? _document;
 
     [ObservableProperty]
@@ -71,7 +73,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public bool IsDocumentOpen => Document is not null;
 
-    public string Title => Document is null ? AppName : $"{Path.GetFileName(Document.FilePath)} - {AppName}";
+    /// <summary>창 제목. 저장하지 않은 주석이 있으면 파일 이름 앞에 *를 붙인다.</summary>
+    public string Title => Document is null
+        ? AppName
+        : $"{(Annotations?.IsModified == true ? "*" : "")}{Path.GetFileName(Document.FilePath)} - {AppName}";
 
     /// <summary>화면에 표시하는 페이지 번호 (1부터). 범위를 벗어난 값은 가장 가까운 페이지로 맞춘다.</summary>
     public int CurrentPageNumber
@@ -166,12 +171,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task OpenFileAsync(string path)
     {
+        if (!ConfirmDiscardAnnotations())
+        {
+            return;
+        }
+
         IsLoading = true;
         try
         {
             var document = await PdfDocument.OpenAsync(path);
             var old = Document;
             CurrentPageIndex = 0;
+            Annotations = new AnnotationSet();
             Document = document;
             old?.Dispose();
         }

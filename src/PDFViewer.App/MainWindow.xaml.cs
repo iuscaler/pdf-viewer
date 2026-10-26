@@ -37,6 +37,14 @@ public partial class MainWindow : Window
         };
     }
 
+    private void OnWindowClosing(object? sender, CancelEventArgs e)
+    {
+        if (!_viewModel.ConfirmDiscardAnnotations())
+        {
+            e.Cancel = true;
+        }
+    }
+
     protected override void OnClosed(EventArgs e)
     {
         Mouse.OverrideCursor = null;

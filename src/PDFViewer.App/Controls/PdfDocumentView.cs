@@ -22,8 +22,9 @@ namespace PDFViewer.App.Controls;
 /// 스크롤 범위는 "창(Window)"이라는 문서 좌표 사각형으로 정한다.
 /// 연속 스크롤에서는 문서 전체가, 페이지 단위 모드에서는 현재 페이지가 있는 줄이 창이 된다.
 /// 스크롤 위치(_offsetX/Y)는 창의 왼쪽 위를 기준으로 한다.
+/// 펜 주석 입력과 그리기는 PdfDocumentView.Ink.cs에 있다.
 /// </remarks>
-public sealed class PdfDocumentView : FrameworkElement, IScrollInfo
+public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
 {
     public const double MinZoom = 0.1;
     public const double MaxZoom = 10;
@@ -112,6 +113,7 @@ public sealed class PdfDocumentView : FrameworkElement, IScrollInfo
         _zoomSettleTimer = new DispatcherTimer(ZoomSettleDelay, DispatcherPriority.Background, OnZoomSettled,
             Dispatcher);
         _zoomSettleTimer.Stop();
+        InitializeInk();
         Loaded += (_, _) =>
         {
             _dpiScale = VisualTreeHelper.GetDpi(this).DpiScaleX;
@@ -183,6 +185,7 @@ public sealed class PdfDocumentView : FrameworkElement, IScrollInfo
         _pageImages.Clear();
         _details.Clear();
         _failedPages.Clear();
+        _inkDrawings.Clear();
         _offsetX = _offsetY = 0;
 
         if (Document is { } document)
@@ -201,6 +204,8 @@ public sealed class PdfDocumentView : FrameworkElement, IScrollInfo
         {
             ScrollToPage(0);
         }
+
+        UpdateToolState();
     }
 
     private void OnZoomPropertyChanged()
@@ -586,6 +591,7 @@ public sealed class PdfDocumentView : FrameworkElement, IScrollInfo
         InvalidateVisual();
         UpdateCurrentPage();
         UpdateRenderRequests();
+        UpdateInkCanvasAttributes();
     }
 
     /// <summary>연속 스크롤에서는 화면에서 가장 넓게 보이는 페이지를 현재 페이지로 삼는다.</summary>
@@ -850,12 +856,19 @@ public sealed class PdfDocumentView : FrameworkElement, IScrollInfo
 
     #region 그리기
 
-    protected override Size MeasureOverride(Size availableSize) =>
-        new(double.IsInfinity(availableSize.Width) ? Window.Width : availableSize.Width,
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        var size = new Size(double.IsInfinity(availableSize.Width) ? Window.Width : availableSize.Width,
             double.IsInfinity(availableSize.Height) ? Window.Height : availableSize.Height);
+        _inkCanvas.Measure(size);
+        return size;
+    }
 
     protected override Size ArrangeOverride(Size finalSize)
     {
+        // 펜 입력용 InkCanvas는 화면(뷰포트) 전체를 덮는다.
+        _inkCanvas.Arrange(new Rect(finalSize));
+
         if (finalSize != _viewport)
         {
             _viewport = finalSize;
@@ -887,6 +900,8 @@ public sealed class PdfDocumentView : FrameworkElement, IScrollInfo
         {
             DrawPage(dc, i);
         }
+
+        DrawToolOverlay(dc);
     }
 
     private void DrawPage(DrawingContext dc, int pageIndex)
@@ -910,6 +925,8 @@ public sealed class PdfDocumentView : FrameworkElement, IScrollInfo
                 rect.X + region.X * scale, rect.Y + region.Y * scale, region.Width * scale, region.Height * scale));
         }
 
+        DrawInk(dc, pageIndex, rect);
+
         if (_failedPages.Contains(pageIndex))
         {
             var text = new FormattedText("이 페이지를 표시할 수 없습니다.", CultureInfo.CurrentUICulture,
@@ -919,6 +936,11 @@ public sealed class PdfDocumentView : FrameworkElement, IScrollInfo
 
         dc.DrawRectangle(null, PageBorderPen, rect);
     }
+
+    protected override int VisualChildrenCount => 1;
+
+    protected override Visual GetVisualChild(int index) =>
+        index == 0 ? _inkCanvas : throw new ArgumentOutOfRangeException(nameof(index));
 
     #endregion
 

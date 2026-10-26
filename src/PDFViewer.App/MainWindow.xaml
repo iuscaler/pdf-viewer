@@ -12,6 +12,7 @@
         WindowStartupLocation="CenterScreen"
         AllowDrop="True" Drop="OnDrop" DragOver="OnDragOver"
         PreviewMouseMove="OnWindowPreviewMouseMove" PreviewKeyDown="OnWindowPreviewKeyDown"
+        Closing="OnWindowClosing"
         FontFamily="Segoe UI">
 
     <Window.Resources>
@@ -39,6 +40,12 @@
         <KeyBinding Key="F11" Command="{Binding ToggleFullScreenCommand}" />
         <KeyBinding Key="F5" Command="{Binding TogglePresentationCommand}" />
         <KeyBinding Key="Escape" Command="{Binding ExitFullScreenCommand}" />
+        <KeyBinding Modifiers="Control" Key="Z" Command="{Binding UndoCommand}" />
+        <KeyBinding Modifiers="Control" Key="Y" Command="{Binding RedoCommand}" />
+        <KeyBinding Modifiers="Control+Shift" Key="Z" Command="{Binding RedoCommand}" />
+        <KeyBinding Key="V" Command="{Binding SelectToolCommand}" />
+        <KeyBinding Key="P" Command="{Binding PenToolCommand}" />
+        <KeyBinding Key="E" Command="{Binding EraserToolCommand}" />
     </Window.InputBindings>
 
     <Grid>
@@ -58,13 +65,99 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <Button Grid.Column="0" Style="{StaticResource ToolButtonStyle}" Command="{Binding OpenCommand}"
-                        ToolTip="열기 (Ctrl+O)">
-                    <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE8E5;" />
-                        <TextBlock Text="열기" Margin="6,0,0,0" VerticalAlignment="Center" />
-                    </StackPanel>
-                </Button>
+                <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding OpenCommand}"
+                            ToolTip="열기 (Ctrl+O)">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE8E5;" />
+                            <TextBlock Text="열기" Margin="6,0,0,0" VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Button>
+
+                    <Border Style="{StaticResource ToolSeparatorStyle}" />
+
+                    <!-- 주석 도구 -->
+                    <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
+                                  IsChecked="{Binding IsSelectTool}" ToolTip="선택 (V)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE8B0;" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
+                                  IsChecked="{Binding IsPenTool}" ToolTip="펜 (P)">
+                        <Grid>
+                            <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xEE56;" />
+                            <!-- 현재 펜 색 -->
+                            <Rectangle Height="3" VerticalAlignment="Bottom" Margin="0,0,0,-5" RadiusX="1" RadiusY="1">
+                                <Rectangle.Fill>
+                                    <SolidColorBrush Color="{Binding PenColor}" />
+                                </Rectangle.Fill>
+                            </Rectangle>
+                        </Grid>
+                    </ToggleButton>
+                    <!-- 팝업이 열려 있는 동안 버튼이 클릭을 받지 않게 해서, 버튼을 눌러 닫을 때 다시 열리지 않게 한다 -->
+                    <ToggleButton x:Name="PenOptionsButton" Style="{StaticResource ToolButtonStyle}"
+                                  IsEnabled="{Binding IsDocumentOpen}" MinWidth="16" Padding="2,0"
+                                  IsHitTestVisible="{Binding IsOpen, ElementName=PenOptionsPopup,
+                                                     Converter={StaticResource InverseBoolean}}"
+                                  ToolTip="펜 색과 굵기">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE70D;" FontSize="10" />
+                    </ToggleButton>
+                    <Popup x:Name="PenOptionsPopup" IsOpen="{Binding IsChecked, ElementName=PenOptionsButton}"
+                           StaysOpen="False"
+                           PlacementTarget="{Binding ElementName=PenOptionsButton}" Placement="Bottom"
+                           AllowsTransparency="True">
+                        <Border Background="White" BorderBrush="{StaticResource ToolbarBorder}" BorderThickness="1"
+                                CornerRadius="6" Padding="10" Margin="0,4,8,8">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.2" />
+                            </Border.Effect>
+                            <StackPanel>
+                                <TextBlock Text="색" Foreground="#5A5A5A" Margin="2,0,0,4" />
+                                <ListBox ItemsSource="{x:Static vm:MainViewModel.PenColors}"
+                                         SelectedItem="{Binding PenColor}"
+                                         Style="{StaticResource OptionListStyle}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Ellipse Width="20" Height="20" Stroke="#30000000" StrokeThickness="1">
+                                                <Ellipse.Fill>
+                                                    <SolidColorBrush Color="{Binding}" />
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                                <TextBlock Text="굵기" Foreground="#5A5A5A" Margin="2,10,0,4" />
+                                <ListBox ItemsSource="{x:Static vm:MainViewModel.PenWidths}"
+                                         SelectedItem="{Binding PenWidth}"
+                                         Style="{StaticResource OptionListStyle}">
+                                    <ListBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Width="28" Height="20" ToolTip="{Binding StringFormat={}{0} pt}">
+                                                <Rectangle Height="{Binding}" Fill="#1A1A1A" RadiusX="1" RadiusY="1"
+                                                           VerticalAlignment="Center" />
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ListBox.ItemTemplate>
+                                </ListBox>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                    <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
+                                  IsChecked="{Binding IsEraserTool}"
+                                  ToolTip="지우개 (E): 획을 눌러서 지웁니다. 펜 뒤쪽으로도 지울 수 있습니다.">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE75C;" />
+                    </ToggleButton>
+
+                    <Border Style="{StaticResource ToolSeparatorStyle}" />
+
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding UndoCommand}"
+                            ToolTip="실행 취소 (Ctrl+Z)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE7A7;" />
+                    </Button>
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding RedoCommand}"
+                            ToolTip="다시 실행 (Ctrl+Y)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE7A6;" />
+                    </Button>
+                </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center">
                     <!-- 페이지 이동 -->
@@ -170,6 +263,10 @@
                                           PageLayout="{Binding PageLayout}"
                                           ShowCoverSeparately="{Binding ShowCoverSeparately}"
                                           RightToLeft="{Binding RightToLeft}"
+                                          Annotations="{Binding Annotations}"
+                                          ActiveTool="{Binding ActiveTool}"
+                                          PenColor="{Binding PenColor}"
+                                          PenWidth="{Binding PenWidth}"
                                           CurrentPageIndex="{Binding CurrentPageIndex}" />
             </ScrollViewer>
 
