@@ -1,0 +1,65 @@
+﻿<Application x:Class="PDFViewer.App.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             ShutdownMode="OnMainWindowClose">
+    <Application.Resources>
+        <FontFamily x:Key="IconFont">Segoe Fluent Icons, Segoe MDL2 Assets</FontFamily>
+
+        <SolidColorBrush x:Key="ToolbarBackground" Color="#F9F9F9" />
+        <SolidColorBrush x:Key="ToolbarBorder" Color="#E5E5E5" />
+        <SolidColorBrush x:Key="DocumentBackground" Color="#E8E8E8" />
+        <SolidColorBrush x:Key="ButtonHover" Color="#14000000" />
+        <SolidColorBrush x:Key="ButtonPressed" Color="#24000000" />
+        <SolidColorBrush x:Key="ButtonChecked" Color="#1F0067C0" />
+
+        <!-- 툴바의 납작한 버튼 -->
+        <Style x:Key="ToolButtonStyle" TargetType="ButtonBase">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#1A1A1A" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="8,0" />
+            <Setter Property="MinWidth" Value="32" />
+            <Setter Property="Height" Value="32" />
+            <Setter Property="Margin" Value="1,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="Focusable" Value="False" />
+            <Setter Property="ToolTipService.InitialShowDelay" Value="400" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ButtonBase">
+                        <Border x:Name="Bd" Background="{TemplateBinding Background}" CornerRadius="4"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource ButtonHover}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource ButtonPressed}" />
+                            </Trigger>
+                            <Trigger Property="ToggleButton.IsChecked" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource ButtonChecked}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="IconTextStyle" TargetType="TextBlock">
+            <Setter Property="FontFamily" Value="{StaticResource IconFont}" />
+            <Setter Property="FontSize" Value="16" />
+        </Style>
+
+        <Style x:Key="ToolSeparatorStyle" TargetType="Border">
+            <Setter Property="Width" Value="1" />
+            <Setter Property="Height" Value="20" />
+            <Setter Property="Margin" Value="6,0" />
+            <Setter Property="Background" Value="{StaticResource ToolbarBorder}" />
+        </Style>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!-- LibraryImport 소스 생성기가 포인터 코드를 생성하므로 필요 -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- PDFium 네이티브 바이너리 (win-x64 / win-x86 / win-arm64) -->
+    <PackageReference Include="bblanchon.PDFium.Win32" Version="157.0.8100" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="PDFViewer.Core.Tests" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/PDFViewer.App/PDFViewer.App.csproj" />
+    <Project Path="src/PDFViewer.Core/PDFViewer.Core.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/PDFViewer.Core.Tests/PDFViewer.Core.Tests.csproj" />
+  </Folder>
+</Solution>
