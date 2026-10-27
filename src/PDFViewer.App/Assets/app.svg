@@ -1,0 +1,13 @@
+<!-- 앱 아이콘 원본. app.ico는 이 그림을 16~256px로 그려서 만든다 (글꼴: Pretendard Bold). -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#B5301B"/>
+      <stop offset="1" stop-color="#8E1F10"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="224" ry="224" fill="url(#bg)"/>
+  <text x="512" y="512" text-anchor="middle" dominant-baseline="central"
+        font-family="Pretendard, sans-serif"
+        font-weight="700" font-size="363" letter-spacing="6.6" fill="#FFFFFF">PDF</text>
+</svg>
