@@ -75,10 +75,43 @@ public sealed class PageText
     }
 
     /// <summary>
+    /// index 글자가 들어 있는 단어의 첫 글자와 끝 글자 (더블클릭 선택). 단어는 글자·숫자가 이어진 부분이고,
+    /// index가 공백이나 문장 부호면 그 글자 하나다.
+    /// </summary>
+    public (int Start, int End) WordAt(int index)
+    {
+        if (!IsWordChar(Chars[index].Value))
+        {
+            return (index, index);
+        }
+
+        var start = index;
+        while (start > 0 && IsWordChar(Chars[start - 1].Value))
+        {
+            start--;
+        }
+
+        var end = index;
+        while (end < Chars.Count - 1 && IsWordChar(Chars[end + 1].Value))
+        {
+            end++;
+        }
+
+        return (start, end);
+    }
+
+    private static bool IsWordChar(char c) => char.IsLetterOrDigit(c) || c == '_';
+
+    /// <summary>
     /// 두 글자 사이(양 끝 포함)를 줄 단위 사각형으로 묶는다. 형광펜과 선택 영역 표시에 쓴다.
     /// </summary>
     public IReadOnlyList<LayoutRect> GetSelectionRects(int from, int to)
     {
+        if (Chars.Count == 0)
+        {
+            return [];
+        }
+
         var (start, end) = Order(from, to);
         var rects = new List<LayoutRect>();
         LayoutRect? current = null;
@@ -116,6 +149,11 @@ public sealed class PageText
     /// <summary>두 글자 사이(양 끝 포함)의 문자열. PDFium이 넣은 줄바꿈도 포함한다.</summary>
     public string GetText(int from, int to)
     {
+        if (Chars.Count == 0)
+        {
+            return "";
+        }
+
         var (start, end) = Order(from, to);
         var sb = new StringBuilder(end - start + 1);
         for (var i = start; i <= end; i++)

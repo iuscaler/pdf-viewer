@@ -600,6 +600,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         UpdateRenderRequests();
         UpdateInkCanvasAttributes();
         EnsureVisibleTextLoaded();
+        UpdateTextSelectionAfterScroll();
     }
 
     /// <summary>연속 스크롤에서는 화면에서 가장 넓게 보이는 페이지를 현재 페이지로 삼는다.</summary>

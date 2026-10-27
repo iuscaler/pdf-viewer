@@ -44,11 +44,42 @@ public sealed class AnnotationSet
 
     public void Add(Annotation annotation) => Execute(new Change([annotation], []));
 
+    /// <summary>
+    /// 주석들을 지운다. 같은 페이지에 이름이 같은 주석(한 PDF 주석에서 나온 여러 획)이 있으면 함께 지운다.
+    /// </summary>
     public void Remove(IReadOnlyCollection<Annotation> annotations)
     {
-        if (annotations.Count > 0)
+        if (annotations.Count == 0)
         {
-            Execute(new Change([], annotations.ToArray()));
+            return;
+        }
+
+        var names = annotations.Select(a => (a.PageIndex, a.Name)).ToHashSet();
+        var all = annotations
+            .Concat(names.SelectMany(n => GetAnnotations(n.PageIndex).Where(a => a.Name == n.Name)))
+            .Distinct()
+            .ToArray();
+        Execute(new Change([], all));
+    }
+
+    /// <summary>
+    /// 파일에 이미 들어 있던 주석을 목록에 넣는다. 실행 취소 기록에 남지 않고, 수정한 것으로 보지 않으며,
+    /// 이벤트도 내지 않는다(이미 PDF와 화면에 있으므로). 이후로는 지우개와 실행 취소의 대상이 된다.
+    /// 같은 페이지에 이름이 같은 주석이 이미 있으면(읽기 전에 사용자가 그린 주석) 건너뛴다.
+    /// </summary>
+    public void Load(IEnumerable<Annotation> annotations)
+    {
+        var existing = new HashSet<(int, string)>();
+        foreach (var group in annotations.GroupBy(a => a.PageIndex))
+        {
+            if (!_annotationsByPage.TryGetValue(group.Key, out var list))
+            {
+                _annotationsByPage[group.Key] = list = [];
+            }
+
+            existing.Clear();
+            existing.UnionWith(list.Select(a => (a.PageIndex, a.Name)));
+            list.AddRange(group.Where(a => !existing.Contains((a.PageIndex, a.Name))));
         }
     }
 

@@ -197,6 +197,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
             // 전에 보던 페이지로 이동하고, 최근 파일 맨 앞에 둔다.
             CurrentPageIndex = Math.Clamp(Settings.LastPageOf(document.FilePath), 0, document.PageCount - 1);
             RememberCurrentDocument();
+
+            // 파일에 이미 있던 펜·형광펜 주석을 읽어서 지우개와 실행 취소로 다룰 수 있게 한다.
+            _ = LoadExistingAnnotationsAsync(document, Annotations, CurrentPageIndex);
         }
         catch (PdfException ex)
         {

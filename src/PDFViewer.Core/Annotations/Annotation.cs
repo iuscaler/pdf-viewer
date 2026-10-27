@@ -16,12 +16,21 @@ public abstract class Annotation
         ArgumentOutOfRangeException.ThrowIfNegative(pageIndex);
         PageIndex = pageIndex;
         Color = color;
+        Name = NamePrefix + Id.ToString("D");
     }
 
-    /// <summary>
-    /// 주석 고유 ID. PDF 주석의 이름(/NM)으로 저장해서, 실행 취소나 지우개로 지울 때 PDF 안의 주석을 찾는 데 쓴다.
-    /// </summary>
+    /// <summary>이 앱이 붙이는 PDF 주석 이름의 앞부분.</summary>
+    public const string NamePrefix = "pdfviewer-";
+
+    /// <summary>주석 고유 ID.</summary>
     public Guid Id { get; } = Guid.NewGuid();
+
+    /// <summary>
+    /// PDF 주석의 이름(/NM). 실행 취소나 지우개로 지울 때 PDF 안의 주석을 찾는 데 쓴다.
+    /// 새로 만든 주석은 ID로 만들고, PDF에서 읽은 주석은 원래 이름을 쓴다.
+    /// 이름이 같은 주석들은 한 PDF 주석에서 나온 것이라 함께 지워진다.
+    /// </summary>
+    public string Name { get; init; }
 
     public int PageIndex { get; }
 

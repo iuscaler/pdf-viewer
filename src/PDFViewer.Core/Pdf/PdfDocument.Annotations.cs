@@ -38,6 +38,10 @@ public sealed partial class PdfDocument
                 var inkList = stroke.Points.Select(p => ToPdfPoint(page, size, p.X, p.Y)).ToArray();
                 PdfiumNative.FPDFAnnot_AddInkStroke(annot, inkList, (nuint)inkList.Length);
 
+                // 다시 열었을 때 그대로 되살리도록 이 앱의 정보(종류, 필압이 들어 있는 점 목록)를 함께 저장한다.
+                PdfiumNative.FPDFAnnot_SetStringValue(annot, KindKey, stroke.IsHighlighter ? KindHighlighter : KindPen);
+                PdfiumNative.FPDFAnnot_SetStringValue(annot, PointsKey, InkPointCodec.Encode(stroke.Points));
+
                 // 외관: 윤곽선을 채운 경로. 형광펜은 곱하기 합성으로 아래 글자가 선명하게 남는다.
                 PdfiumNative.FPDFAnnot_SetAP(annot, PdfiumNative.FPDF_ANNOT_APPEARANCEMODE_NORMAL, "");
                 var path = CreateFilledPath(page, size, outline, stroke.Color);
@@ -102,24 +106,28 @@ public sealed partial class PdfDocument
         });
     }
 
-    /// <summary>앱이 넣은 주석을 ID로 찾아 지운다. 지웠으면 true.</summary>
-    public Task<bool> RemoveAnnotationAsync(int pageIndex, Guid id)
+    /// <summary>
+    /// 이름(/NM)이 같은 주석을 모두 지운다. 하나라도 지웠으면 true.
+    /// (PDF에서 읽은 여러 획짜리 주석은 앱 안에서 이름이 같은 여러 획이 되고, 실행 취소로 되살리면 획마다
+    /// 같은 이름의 주석이 생기므로 모두 지운다.)
+    /// </summary>
+    public Task<bool> RemoveAnnotationAsync(int pageIndex, string name)
     {
         CheckPage(pageIndex);
-        var name = NameOf(id);
         return PdfiumThread.InvokeAsync(() =>
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             var page = GetPageHandle(pageIndex);
+            var removed = false;
             for (var i = PdfiumNative.FPDFPage_GetAnnotCount(page) - 1; i >= 0; i--)
             {
                 if (GetAnnotName(page, i) == name)
                 {
-                    return PdfiumNative.FPDFPage_RemoveAnnot(page, i);
+                    removed |= PdfiumNative.FPDFPage_RemoveAnnot(page, i);
                 }
             }
 
-            return false;
+            return removed;
         });
     }
 
@@ -137,7 +145,14 @@ public sealed partial class PdfDocument
     }
 
     /// <summary>앱이 넣는 주석의 이름(/NM).</summary>
-    public static string NameOf(Guid id) => $"pdfviewer-{id:D}";
+    public static string NameOf(Guid id) => Annotation.NamePrefix + id.ToString("D");
+
+    // 이 앱이 Ink 주석에 함께 저장하는 키
+    private const string KindKey = "PDFViewer.Kind";
+    private const string ColorKey = "PDFViewer.Color";
+    private const string PointsKey = "PDFViewer.Points";
+    private const string KindPen = "pen";
+    private const string KindHighlighter = "highlighter";
 
     private void CheckPage(int pageIndex)
     {
@@ -173,7 +188,9 @@ public sealed partial class PdfDocument
         var c = annotation.Color;
         PdfiumNative.FPDFAnnot_SetColor(annot, PdfiumNative.FPDFANNOT_COLORTYPE_Color,
             (c >> 16) & 0xFF, (c >> 8) & 0xFF, c & 0xFF, 0xFF);
-        PdfiumNative.FPDFAnnot_SetStringValue(annot, "NM", NameOf(annotation.Id));
+        PdfiumNative.FPDFAnnot_SetStringValue(annot, "NM", annotation.Name);
+        // 외관이 있는 주석은 FPDFAnnot_GetColor로 색을 읽을 수 없어서, 다시 열 때 쓰도록 따로 저장한다.
+        PdfiumNative.FPDFAnnot_SetStringValue(annot, ColorKey, $"#{annotation.Color:X8}");
         PdfiumNative.FPDFAnnot_SetFlags(annot, PdfiumNative.FPDF_ANNOT_FLAG_PRINT);
     }
 
@@ -236,7 +253,7 @@ public sealed partial class PdfDocument
         return (left, top, right, bottom);
     }
 
-    private static unsafe string GetAnnotName(nint page, int index)
+    private static string GetAnnotName(nint page, int index)
     {
         var annot = PdfiumNative.FPDFPage_GetAnnot(page, index);
         if (annot == 0)
@@ -246,23 +263,29 @@ public sealed partial class PdfDocument
 
         try
         {
-            var bytes = PdfiumNative.FPDFAnnot_GetStringValue(annot, "NM", null, 0);
-            if (bytes <= 2)
-            {
-                return "";
-            }
-
-            var buffer = new char[bytes / 2];
-            fixed (char* p = buffer)
-            {
-                PdfiumNative.FPDFAnnot_GetStringValue(annot, "NM", p, bytes);
-            }
-
-            return new string(buffer, 0, buffer.Length - 1); // 끝의 0 제외
+            return GetAnnotString(annot, "NM");
         }
         finally
         {
             PdfiumNative.FPDFPage_CloseAnnot(annot);
         }
+    }
+
+    /// <summary>주석 사전의 문자열 값. 없으면 빈 문자열.</summary>
+    private static unsafe string GetAnnotString(nint annot, string key)
+    {
+        var bytes = PdfiumNative.FPDFAnnot_GetStringValue(annot, key, null, 0);
+        if (bytes <= 2)
+        {
+            return "";
+        }
+
+        var buffer = new char[bytes / 2];
+        fixed (char* p = buffer)
+        {
+            PdfiumNative.FPDFAnnot_GetStringValue(annot, key, p, bytes);
+        }
+
+        return new string(buffer, 0, buffer.Length - 1); // 끝의 0 제외
     }
 }

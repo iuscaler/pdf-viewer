@@ -55,6 +55,9 @@
     <Window.CommandBindings>
         <!-- 선택 도구로 고른 텍스트 복사 (Ctrl+C) -->
         <CommandBinding Command="ApplicationCommands.Copy" Executed="OnCopyExecuted" CanExecute="OnCopyCanExecute" />
+        <!-- 문서 전체 텍스트 선택 (Ctrl+A). 검색 창 등 글자 입력 칸에서는 그 칸이 먼저 처리한다. -->
+        <CommandBinding Command="ApplicationCommands.SelectAll" Executed="OnSelectAllExecuted"
+                        CanExecute="OnSelectAllCanExecute" />
     </Window.CommandBindings>
 
     <Grid>

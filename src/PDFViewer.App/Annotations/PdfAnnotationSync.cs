@@ -30,7 +30,7 @@ internal sealed class PdfAnnotationSync : IDisposable
     {
         foreach (var annotation in removed)
         {
-            Run(_document.RemoveAnnotationAsync(annotation.PageIndex, annotation.Id));
+            Run(_document.RemoveAnnotationAsync(annotation.PageIndex, annotation.Name));
         }
 
         foreach (var annotation in added)

@@ -322,7 +322,22 @@ public partial class MainWindow : Window
     private void OnCopyCanExecute(object sender, CanExecuteRoutedEventArgs e) =>
         e.CanExecute = DocumentView.HasTextSelection;
 
-    private void OnCopyExecuted(object sender, ExecutedRoutedEventArgs e) => DocumentView.CopySelectedText();
+    private async void OnCopyExecuted(object sender, ExecutedRoutedEventArgs e) =>
+        await DocumentView.CopySelectedTextAsync();
+
+    private void OnSelectAllCanExecute(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = _viewModel.IsDocumentOpen;
+
+    // 텍스트 선택은 선택 도구에서 하므로, 다른 도구를 쓰고 있었으면 선택 도구로 바꾼 뒤 선택한다.
+    private void OnSelectAllExecuted(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (!_viewModel.IsSelectTool)
+        {
+            _viewModel.SelectToolCommand.Execute(null);
+        }
+
+        DocumentView.SelectAllText();
+    }
 
     // 펜/형광펜 옵션 팝업이 닫히면 키보드 포커스를 문서로 돌려준다 (팝업 안 컨트롤에 남아 있으면 단축키가 먹지 않음).
     private void OnToolOptionsClosed(object? sender, EventArgs e) => DocumentScroller.Focus();

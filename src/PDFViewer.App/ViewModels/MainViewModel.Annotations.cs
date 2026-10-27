@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using PDFViewer.App.Controls;
 using PDFViewer.Core.Annotations;
+using PDFViewer.Core.Pdf;
 
 namespace PDFViewer.App.ViewModels;
 
@@ -135,4 +136,36 @@ public sealed partial class MainViewModel
 
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo() => Annotations?.Redo();
+
+    /// <summary>
+    /// 파일에 이미 있던 주석을 페이지마다 읽어서 주석 목록에 넣는다. 보고 있는 페이지부터 바깥쪽으로 읽고,
+    /// 페이지 하나씩 PDFium 작업으로 나눠서 그 사이에 화면 렌더링이 끼어들 수 있게 한다.
+    /// 그 사이 다른 문서를 열면 멈춘다.
+    /// </summary>
+    private async Task LoadExistingAnnotationsAsync(PdfDocument document, AnnotationSet annotations, int startPage)
+    {
+        var order = Enumerable.Range(0, document.PageCount)
+            .OrderBy(page => Math.Abs(page - startPage))
+            .ThenBy(page => page);
+        foreach (var page in order)
+        {
+            if (Document != document)
+            {
+                return;
+            }
+
+            try
+            {
+                annotations.Load(await document.ReadAnnotationsAsync(page));
+            }
+            catch (Exception ex) when (ex is PdfException or ObjectDisposedException)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Annotations] {page + 1}쪽 주석을 읽지 못했습니다: {ex.Message}");
+                if (ex is ObjectDisposedException)
+                {
+                    return;
+                }
+            }
+        }
+    }
 }

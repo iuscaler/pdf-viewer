@@ -72,8 +72,8 @@ public sealed class PdfAnnotationTests : IDisposable
         var stroke = HorizontalStroke(isHighlighter: false, Red);
         await doc.AddInkAnnotationAsync(stroke, Band(50, 150, 780, 800));
 
-        Assert.True(await doc.RemoveAnnotationAsync(0, stroke.Id));
-        Assert.False(await doc.RemoveAnnotationAsync(0, stroke.Id));
+        Assert.True(await doc.RemoveAnnotationAsync(0, stroke.Name));
+        Assert.False(await doc.RemoveAnnotationAsync(0, stroke.Name));
 
         using var bitmap = await RenderPage(doc);
         Assert.Equal((0xFF, 0xFF, 0xFF), PixelAt(bitmap, 125, 790));
@@ -119,7 +119,7 @@ public sealed class PdfAnnotationTests : IDisposable
             await doc.SaveAsync(_path);
 
             // 저장한 뒤에도 계속 편집하고 다시 저장할 수 있다.
-            Assert.True(await doc.RemoveAnnotationAsync(0, stroke.Id));
+            Assert.True(await doc.RemoveAnnotationAsync(0, stroke.Name));
             await doc.SaveAsync(_path);
             Assert.Empty(await doc.GetAnnotationNamesAsync(0));
         }
@@ -128,6 +128,34 @@ public sealed class PdfAnnotationTests : IDisposable
         Assert.Empty(await reopened.GetAnnotationNamesAsync(0));
         using var bitmap = await RenderPage(reopened);
         Assert.Equal((0xFF, 0xFF, 0xFF), PixelAt(bitmap, 125, 790));
+    }
+
+    [Fact]
+    public async Task EncryptedPdf_StaysEncryptedAfterSave()
+    {
+        var path = TestPdf.CreateEncrypted("1234", new TestPdf.Page(595, 842, "0 0 0 rg 0 0 100 100 re f"));
+        _extraFiles.Add(path);
+        var stroke = HorizontalStroke(isHighlighter: false, Red);
+
+        // 암호 없이는 열리지 않는다.
+        var ex = await Assert.ThrowsAsync<PdfException>(() => PdfDocument.OpenAsync(path));
+        Assert.Equal(PdfError.Password, ex.Error);
+
+        await using (var doc = await PdfDocument.OpenAsync(path, "1234"))
+        {
+            await doc.AddInkAnnotationAsync(stroke, Band(50, 150, 780, 800));
+            await doc.SaveAsync(path);
+        }
+
+        // 저장한 뒤에도 여전히 암호가 필요하고, 암호로 열면 주석과 원래 내용이 모두 보인다.
+        ex = await Assert.ThrowsAsync<PdfException>(() => PdfDocument.OpenAsync(path));
+        Assert.Equal(PdfError.Password, ex.Error);
+
+        await using var reopened = await PdfDocument.OpenAsync(path, "1234");
+        Assert.Contains(PdfDocument.NameOf(stroke.Id), await reopened.GetAnnotationNamesAsync(0));
+        using var bitmap = await RenderPage(reopened);
+        Assert.Equal((0, 0, 0), PixelAt(bitmap, 25, 825)); // 원래 검은 사각형
+        Assert.Equal((0xFF, 0, 0), PixelAt(bitmap, 125, 790)); // 주석
     }
 
     [Fact]

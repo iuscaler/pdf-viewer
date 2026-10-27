@@ -214,6 +214,61 @@ internal static partial class PdfiumNative
     [return: MarshalAs(UnmanagedType.Bool)]
     public static partial bool FPDFAnnot_AppendAttachmentPoints(nint annot, in FS_QUADPOINTSF quadPoints);
 
+    // ---- 주석 읽기 ----
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_GetColor(nint annot, int type, out uint r, out uint g, out uint b,
+        out uint a);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_GetBorder(nint annot, out float horizontalRadius, out float verticalRadius,
+        out float borderWidth);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_GetNumberValue(nint annot,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string key, out float value);
+
+    /// <summary>외관 스트림 안의 객체 수 (Ink, Stamp 주석만).</summary>
+    [LibraryImport(Lib)]
+    public static partial int FPDFAnnot_GetObjectCount(nint annot);
+
+    [LibraryImport(Lib)]
+    public static partial nint FPDFAnnot_GetObject(nint annot, int index);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFPageObj_GetStrokeColor(nint pageObject, out uint r, out uint g, out uint b,
+        out uint a);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFPageObj_GetFillColor(nint pageObject, out uint r, out uint g, out uint b,
+        out uint a);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFPath_GetDrawMode(nint path, out int fillMode,
+        [MarshalAs(UnmanagedType.Bool)] out bool stroke);
+
+    [LibraryImport(Lib)]
+    public static partial uint FPDFAnnot_GetInkListCount(nint annot);
+
+    /// <summary>InkList의 path 하나의 점들. buffer가 null이거나 작으면 점 개수만 돌려준다.</summary>
+    [LibraryImport(Lib)]
+    public static partial uint FPDFAnnot_GetInkListPath(nint annot, uint pathIndex,
+        [Out] FS_POINTF[]? buffer, uint length);
+
+    [LibraryImport(Lib)]
+    public static partial nuint FPDFAnnot_CountAttachmentPoints(nint annot);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_GetAttachmentPoints(nint annot, nuint quadIndex,
+        out FS_QUADPOINTSF quadPoints);
+
     // ---- 페이지 객체 (fpdf_edit.h) ----
 
     public const int FPDF_FILLMODE_WINDING = 2;

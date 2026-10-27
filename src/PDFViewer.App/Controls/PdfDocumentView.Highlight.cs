@@ -67,10 +67,7 @@ public sealed partial class PdfDocumentView
             foreach (var (page, rect) in _visiblePageRects)
             {
                 var highlights = IsShowingStaleContent(page) ? GetPendingHighlightDrawing(page) : null;
-                var selection = IsHighlighterTool && _selection is { } s && s.Page == page
-                                && _pageTexts.GetValueOrDefault(page) is { } text
-                    ? text.GetSelectionRects(s.Anchor, s.Focus)
-                    : null;
+                var selection = IsHighlighterTool ? GetSelectionRectsOnPage(page) : null;
                 var freehand = _liveStroke is { IsHighlighter: true } f && f.Page == page ? f : null;
                 if (highlights is null && selection is null && freehand is null)
                 {
