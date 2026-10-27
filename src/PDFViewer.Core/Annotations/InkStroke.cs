@@ -8,46 +8,36 @@ namespace PDFViewer.Core.Annotations;
 /// </summary>
 public readonly record struct InkPoint(float X, float Y, float Pressure);
 
-/// <summary>
-/// 펜(또는 자유 형광펜)으로 그린 획 하나. 만든 뒤에는 바뀌지 않는다.
-/// 실행 취소와 지우개가 같은 획을 가리킬 수 있도록 값이 아닌 참조로 비교한다.
-/// </summary>
-public sealed class InkStroke
+/// <summary>펜(또는 자유 형광펜)으로 그린 획 하나.</summary>
+public sealed class InkStroke : Annotation
 {
     public InkStroke(int pageIndex, IReadOnlyList<InkPoint> points, uint color, double width, bool isHighlighter = false)
+        : base(pageIndex, color)
     {
-        ArgumentOutOfRangeException.ThrowIfNegative(pageIndex);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(width);
         if (points.Count == 0)
         {
             throw new ArgumentException("획에는 점이 하나 이상 있어야 합니다.", nameof(points));
         }
 
-        PageIndex = pageIndex;
         Points = points;
-        Color = color;
         Width = width;
         IsHighlighter = isHighlighter;
         Bounds = ComputeBounds(points, width);
     }
 
-    public int PageIndex { get; }
-
     public IReadOnlyList<InkPoint> Points { get; }
-
-    /// <summary>ARGB 색상 (0xAARRGGBB).</summary>
-    public uint Color { get; }
 
     /// <summary>펜 굵기 (포인트).</summary>
     public double Width { get; }
 
+    /// <summary>자유 형광펜으로 그린 반투명 획인지 여부.</summary>
     public bool IsHighlighter { get; }
 
     /// <summary>펜 굵기까지 포함한 영역 (포인트, 페이지 좌표).</summary>
-    public LayoutRect Bounds { get; }
+    public override LayoutRect Bounds { get; }
 
-    /// <summary>점 (x, y)에서 반지름 radius 안에 획이 지나가는지 여부. 모두 포인트 단위.</summary>
-    public bool HitTest(double x, double y, double radius)
+    public override bool HitTest(double x, double y, double radius)
     {
         var reach = radius + Width / 2;
         if (x < Bounds.X - radius || x > Bounds.Right + radius || y < Bounds.Y - radius || y > Bounds.Bottom + radius)

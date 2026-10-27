@@ -5,7 +5,7 @@ namespace PDFViewer.Core.Annotations;
 /// </summary>
 public sealed class AnnotationSet
 {
-    private readonly Dictionary<int, List<InkStroke>> _strokesByPage = new();
+    private readonly Dictionary<int, List<Annotation>> _annotationsByPage = new();
     private readonly Stack<Change> _undo = new();
     private readonly Stack<Change> _redo = new();
     private List<Change>? _group;
@@ -14,6 +14,12 @@ public sealed class AnnotationSet
     // 마지막으로 저장한 시점의 실행 취소 기록 개수. 아직 저장한 적이 없으면 0.
     private int _savedUndoCount;
     private bool _savedStateLost;
+
+    /// <summary>
+    /// 주석이 추가되거나 지워졌을 때 (추가된 주석, 지워진 주석). 실행 취소와 다시 실행도 포함한다.
+    /// <see cref="PageChanged"/>보다 먼저 발생한다.
+    /// </summary>
+    public event Action<IReadOnlyList<Annotation>, IReadOnlyList<Annotation>>? Changed;
 
     /// <summary>페이지의 주석이 바뀌었을 때 (페이지 번호).</summary>
     public event Action<int>? PageChanged;
@@ -28,34 +34,34 @@ public sealed class AnnotationSet
     /// <summary>마지막으로 저장한 뒤 바뀐 내용이 있는지 여부.</summary>
     public bool IsModified => _savedStateLost || _undo.Count != _savedUndoCount;
 
-    public bool HasAnnotations => _strokesByPage.Values.Any(list => list.Count > 0);
+    public bool HasAnnotations => _annotationsByPage.Values.Any(list => list.Count > 0);
 
-    public IReadOnlyList<InkStroke> GetStrokes(int pageIndex) =>
-        _strokesByPage.TryGetValue(pageIndex, out var list) ? list : [];
+    public IReadOnlyList<Annotation> GetAnnotations(int pageIndex) =>
+        _annotationsByPage.TryGetValue(pageIndex, out var list) ? list : [];
 
     public IEnumerable<int> PagesWithAnnotations =>
-        _strokesByPage.Where(pair => pair.Value.Count > 0).Select(pair => pair.Key).Order();
+        _annotationsByPage.Where(pair => pair.Value.Count > 0).Select(pair => pair.Key).Order();
 
-    public void AddStroke(InkStroke stroke) => Execute(new Change([stroke], []));
+    public void Add(Annotation annotation) => Execute(new Change([annotation], []));
 
-    public void RemoveStrokes(IReadOnlyCollection<InkStroke> strokes)
+    public void Remove(IReadOnlyCollection<Annotation> annotations)
     {
-        if (strokes.Count > 0)
+        if (annotations.Count > 0)
         {
-            Execute(new Change([], strokes.ToArray()));
+            Execute(new Change([], annotations.ToArray()));
         }
     }
 
     /// <summary>
-    /// 페이지의 점 (x, y)에서 반지름 radius 안에 지나가는 획들 (포인트 단위).
-    /// 나중에 그린 획(위에 보이는 획)이 앞에 온다.
+    /// 페이지의 점 (x, y)에서 반지름 radius 안에 닿는 주석들 (포인트 단위).
+    /// 나중에 추가한 주석(위에 보이는 주석)이 앞에 온다.
     /// </summary>
-    public IReadOnlyList<InkStroke> HitTest(int pageIndex, double x, double y, double radius) =>
-        GetStrokes(pageIndex).Where(s => s.HitTest(x, y, radius)).Reverse().ToList();
+    public IReadOnlyList<Annotation> HitTest(int pageIndex, double x, double y, double radius) =>
+        GetAnnotations(pageIndex).Where(a => a.HitTest(x, y, radius)).Reverse().ToList();
 
     /// <summary>
     /// 이 범위 안에서 일어난 변경을 실행 취소 한 번으로 되돌릴 수 있게 묶는다.
-    /// 지우개를 한 번 끌어서 여러 획을 지운 경우에 쓴다.
+    /// 지우개를 한 번 끌어서 여러 주석을 지운 경우에 쓴다.
     /// </summary>
     public IDisposable BeginGroup()
     {
@@ -137,23 +143,30 @@ public sealed class AnnotationSet
     private void Apply(Change change)
     {
         var pages = new HashSet<int>();
-        foreach (var stroke in change.Removed)
+        var removed = new List<Annotation>();
+        foreach (var annotation in change.Removed)
         {
-            if (_strokesByPage.TryGetValue(stroke.PageIndex, out var list) && list.Remove(stroke))
+            if (_annotationsByPage.TryGetValue(annotation.PageIndex, out var list) && list.Remove(annotation))
             {
-                pages.Add(stroke.PageIndex);
+                pages.Add(annotation.PageIndex);
+                removed.Add(annotation);
             }
         }
 
-        foreach (var stroke in change.Added)
+        foreach (var annotation in change.Added)
         {
-            if (!_strokesByPage.TryGetValue(stroke.PageIndex, out var list))
+            if (!_annotationsByPage.TryGetValue(annotation.PageIndex, out var list))
             {
-                _strokesByPage[stroke.PageIndex] = list = [];
+                _annotationsByPage[annotation.PageIndex] = list = [];
             }
 
-            list.Add(stroke);
-            pages.Add(stroke.PageIndex);
+            list.Add(annotation);
+            pages.Add(annotation.PageIndex);
+        }
+
+        if (removed.Count > 0 || change.Added.Length > 0)
+        {
+            Changed?.Invoke(change.Added, removed);
         }
 
         foreach (var page in pages)
@@ -162,21 +175,21 @@ public sealed class AnnotationSet
         }
     }
 
-    /// <summary>한 번의 실행 취소 단위. 추가한 획과 지운 획.</summary>
-    private sealed record Change(InkStroke[] Added, InkStroke[] Removed)
+    /// <summary>한 번의 실행 취소 단위. 추가한 주석과 지운 주석.</summary>
+    private sealed record Change(Annotation[] Added, Annotation[] Removed)
     {
         public Change Inverse() => new(Removed, Added);
 
         public static Change Combine(IReadOnlyList<Change> changes)
         {
-            // 묶음 안에서 추가했다가 지운 획은 결과에 남기지 않는다.
+            // 묶음 안에서 추가했다가 지운 주석은 결과에 남기지 않는다.
             var added = changes.SelectMany(c => c.Added).ToList();
-            var removed = new List<InkStroke>();
-            foreach (var stroke in changes.SelectMany(c => c.Removed))
+            var removed = new List<Annotation>();
+            foreach (var annotation in changes.SelectMany(c => c.Removed))
             {
-                if (!added.Remove(stroke))
+                if (!added.Remove(annotation))
                 {
-                    removed.Add(stroke);
+                    removed.Add(annotation);
                 }
             }
 

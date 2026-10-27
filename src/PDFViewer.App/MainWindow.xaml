@@ -21,6 +21,8 @@
 
     <Window.InputBindings>
         <KeyBinding Modifiers="Control" Key="O" Command="{Binding OpenCommand}" />
+        <KeyBinding Modifiers="Control" Key="S" Command="{Binding SaveCommand}" />
+        <KeyBinding Modifiers="Control+Shift" Key="S" Command="{Binding SaveAsCommand}" />
         <KeyBinding Modifiers="Control" Key="OemPlus" Command="{Binding ZoomInCommand}" />
         <KeyBinding Modifiers="Control" Key="Add" Command="{Binding ZoomInCommand}" />
         <KeyBinding Modifiers="Control" Key="OemMinus" Command="{Binding ZoomOutCommand}" />
@@ -45,8 +47,14 @@
         <KeyBinding Modifiers="Control+Shift" Key="Z" Command="{Binding RedoCommand}" />
         <KeyBinding Key="V" Command="{Binding SelectToolCommand}" />
         <KeyBinding Key="P" Command="{Binding PenToolCommand}" />
+        <KeyBinding Key="H" Command="{Binding HighlighterToolCommand}" />
         <KeyBinding Key="E" Command="{Binding EraserToolCommand}" />
     </Window.InputBindings>
+
+    <Window.CommandBindings>
+        <!-- 선택 도구로 고른 텍스트 복사 (Ctrl+C) -->
+        <CommandBinding Command="ApplicationCommands.Copy" Executed="OnCopyExecuted" CanExecute="OnCopyCanExecute" />
+    </Window.CommandBindings>
 
     <Grid>
         <Grid.RowDefinitions>
@@ -73,12 +81,17 @@
                             <TextBlock Text="열기" Margin="6,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                     </Button>
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding SaveCommand}"
+                            ToolTip="저장 (Ctrl+S) / 다른 이름으로 저장 (Ctrl+Shift+S)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE74E;" />
+                    </Button>
 
                     <Border Style="{StaticResource ToolSeparatorStyle}" />
 
                     <!-- 주석 도구 -->
                     <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
-                                  IsChecked="{Binding IsSelectTool}" ToolTip="선택 (V)">
+                                  IsChecked="{Binding IsSelectTool}"
+                                  ToolTip="선택 (V): 텍스트를 끌어서 선택하고 Ctrl+C로 복사합니다.">
                         <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE8B0;" />
                     </ToggleButton>
                     <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
@@ -102,42 +115,94 @@
                         <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE70D;" FontSize="10" />
                     </ToggleButton>
                     <Popup x:Name="PenOptionsPopup" IsOpen="{Binding IsChecked, ElementName=PenOptionsButton}"
-                           StaysOpen="False"
+                           StaysOpen="False" Closed="OnToolOptionsClosed"
                            PlacementTarget="{Binding ElementName=PenOptionsButton}" Placement="Bottom"
                            AllowsTransparency="True">
-                        <Border Background="White" BorderBrush="{StaticResource ToolbarBorder}" BorderThickness="1"
-                                CornerRadius="6" Padding="10" Margin="0,4,8,8">
-                            <Border.Effect>
-                                <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.2" />
-                            </Border.Effect>
-                            <StackPanel>
-                                <TextBlock Text="색" Foreground="#5A5A5A" Margin="2,0,0,4" />
+                        <Border Style="{StaticResource FlyoutStyle}">
+                            <StackPanel Width="220">
+                                <TextBlock Text="색" Style="{StaticResource FlyoutLabelStyle}" />
                                 <ListBox ItemsSource="{x:Static vm:MainViewModel.PenColors}"
                                          SelectedItem="{Binding PenColor}"
-                                         Style="{StaticResource OptionListStyle}">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <Ellipse Width="20" Height="20" Stroke="#30000000" StrokeThickness="1">
-                                                <Ellipse.Fill>
-                                                    <SolidColorBrush Color="{Binding}" />
-                                                </Ellipse.Fill>
-                                            </Ellipse>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
-                                <TextBlock Text="굵기" Foreground="#5A5A5A" Margin="2,10,0,4" />
-                                <ListBox ItemsSource="{x:Static vm:MainViewModel.PenWidths}"
-                                         SelectedItem="{Binding PenWidth}"
-                                         Style="{StaticResource OptionListStyle}">
-                                    <ListBox.ItemTemplate>
-                                        <DataTemplate>
-                                            <Grid Width="28" Height="20" ToolTip="{Binding StringFormat={}{0} pt}">
-                                                <Rectangle Height="{Binding}" Fill="#1A1A1A" RadiusX="1" RadiusY="1"
-                                                           VerticalAlignment="Center" />
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ListBox.ItemTemplate>
-                                </ListBox>
+                                         Style="{StaticResource OptionListStyle}"
+                                         ItemTemplate="{StaticResource ColorSwatchTemplate}" />
+
+                                <DockPanel Margin="0,12,0,2">
+                                    <TextBlock Text="{Binding PenWidth, StringFormat={}{0:0.##} pt}"
+                                               DockPanel.Dock="Right" Foreground="#5A5A5A" />
+                                    <TextBlock Text="굵기" Style="{StaticResource FlyoutLabelStyle}" />
+                                </DockPanel>
+                                <Slider Minimum="{x:Static vm:MainViewModel.PenMinWidth}"
+                                        Maximum="{x:Static vm:MainViewModel.PenMaxWidth}"
+                                        Value="{Binding PenWidth}" TickFrequency="0.25" IsSnapToTickEnabled="True"
+                                        SmallChange="0.25" LargeChange="1" />
+
+                                <!-- 미리보기 -->
+                                <Border Height="40" Margin="0,8,0,0" CornerRadius="4" Background="#F5F5F5">
+                                    <Line X1="20" X2="200" Y1="20" Y2="20" StrokeThickness="{Binding PenWidth}"
+                                          StrokeStartLineCap="Round" StrokeEndLineCap="Round">
+                                        <Line.Stroke>
+                                            <SolidColorBrush Color="{Binding PenColor}" />
+                                        </Line.Stroke>
+                                    </Line>
+                                </Border>
+                            </StackPanel>
+                        </Border>
+                    </Popup>
+                    <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
+                                  IsChecked="{Binding IsHighlighterTool}"
+                                  ToolTip="형광펜 (H): 텍스트 위에서 끌면 글자를 칠하고, 그 밖에서는 자유롭게 칠합니다.">
+                        <Grid>
+                            <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE7E6;" />
+                            <!-- 현재 형광펜 색 -->
+                            <Rectangle Height="3" VerticalAlignment="Bottom" Margin="0,0,0,-5" RadiusX="1" RadiusY="1">
+                                <Rectangle.Fill>
+                                    <SolidColorBrush Color="{Binding HighlighterColor}" />
+                                </Rectangle.Fill>
+                            </Rectangle>
+                        </Grid>
+                    </ToggleButton>
+                    <ToggleButton x:Name="HighlighterOptionsButton" Style="{StaticResource ToolButtonStyle}"
+                                  IsEnabled="{Binding IsDocumentOpen}" MinWidth="16" Padding="2,0"
+                                  IsHitTestVisible="{Binding IsOpen, ElementName=HighlighterOptionsPopup,
+                                                     Converter={StaticResource InverseBoolean}}"
+                                  ToolTip="형광펜 색과 굵기">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE70D;" FontSize="10" />
+                    </ToggleButton>
+                    <Popup x:Name="HighlighterOptionsPopup"
+                           IsOpen="{Binding IsChecked, ElementName=HighlighterOptionsButton}" StaysOpen="False"
+                           Closed="OnToolOptionsClosed"
+                           PlacementTarget="{Binding ElementName=HighlighterOptionsButton}" Placement="Bottom"
+                           AllowsTransparency="True">
+                        <Border Style="{StaticResource FlyoutStyle}">
+                            <StackPanel Width="220">
+                                <TextBlock Text="색" Style="{StaticResource FlyoutLabelStyle}" />
+                                <ListBox ItemsSource="{x:Static vm:MainViewModel.HighlighterColors}"
+                                         SelectedItem="{Binding HighlighterColor}"
+                                         Style="{StaticResource OptionListStyle}"
+                                         ItemTemplate="{StaticResource ColorSwatchTemplate}" />
+
+                                <DockPanel Margin="0,12,0,2">
+                                    <TextBlock Text="{Binding HighlighterWidth, StringFormat={}{0:0} pt}"
+                                               DockPanel.Dock="Right" Foreground="#5A5A5A" />
+                                    <TextBlock Text="굵기 (자유 형광펜)" Style="{StaticResource FlyoutLabelStyle}" />
+                                </DockPanel>
+                                <Slider Minimum="{x:Static vm:MainViewModel.HighlighterMinWidth}"
+                                        Maximum="{x:Static vm:MainViewModel.HighlighterMaxWidth}"
+                                        Value="{Binding HighlighterWidth}" TickFrequency="1"
+                                        IsSnapToTickEnabled="True" SmallChange="1" LargeChange="4" />
+
+                                <!-- 미리보기: 얇은 사각형 펜촉이 진행 방향에 수직으로 지나간 모양 (끝이 평평함) -->
+                                <Border Height="40" Margin="0,8,0,0" CornerRadius="4" Background="#F5F5F5"
+                                        ClipToBounds="True">
+                                    <Line X1="20" X2="200" Y1="20" Y2="20" StrokeThickness="{Binding HighlighterWidth}"
+                                          StrokeStartLineCap="Flat" StrokeEndLineCap="Flat" Opacity="0.7">
+                                        <Line.Stroke>
+                                            <SolidColorBrush Color="{Binding HighlighterColor}" />
+                                        </Line.Stroke>
+                                    </Line>
+                                </Border>
+                                <TextBlock Margin="0,8,0,0" TextWrapping="Wrap" Foreground="#5A5A5A" FontSize="12"
+                                           Text="텍스트 위에서 끌면 글자 높이에 맞춰 칠합니다." />
                             </StackPanel>
                         </Border>
                     </Popup>
@@ -267,6 +332,8 @@
                                           ActiveTool="{Binding ActiveTool}"
                                           PenColor="{Binding PenColor}"
                                           PenWidth="{Binding PenWidth}"
+                                          HighlighterColor="{Binding HighlighterColor}"
+                                          HighlighterWidth="{Binding HighlighterWidth}"
                                           CurrentPageIndex="{Binding CurrentPageIndex}" />
             </ScrollViewer>
 

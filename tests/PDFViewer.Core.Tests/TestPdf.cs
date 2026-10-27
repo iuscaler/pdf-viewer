@@ -5,7 +5,9 @@ namespace PDFViewer.Core.Tests;
 /// <summary>테스트용 최소 PDF 파일 생성기.</summary>
 internal static class TestPdf
 {
-    public sealed record Page(double Width, double Height, string Content = "");
+    /// <param name="Content">페이지 내용 스트림. 글꼴은 /F1 (Helvetica)을 쓸 수 있다.</param>
+    /// <param name="Rotate">페이지 회전 (/Rotate, 90의 배수)</param>
+    public sealed record Page(double Width, double Height, string Content = "", int Rotate = 0);
 
     /// <summary>임시 폴더에 PDF 파일을 만들고 경로를 돌려준다.</summary>
     public static string Create(params Page[] pages)
@@ -14,6 +16,7 @@ internal static class TestPdf
         {
             "<< /Type /Catalog /Pages 2 0 R >>",
             "", // Pages 객체는 페이지 번호를 알고 난 뒤 채운다
+            "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
         };
 
         var kids = new List<string>();
@@ -23,7 +26,8 @@ internal static class TestPdf
             var contentId = pageId + 1;
             kids.Add($"{pageId} 0 R");
             objects.Add(
-                $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {page.Width} {page.Height}] /Contents {contentId} 0 R >>");
+                $"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {page.Width} {page.Height}] /Rotate {page.Rotate} " +
+                $"/Resources << /Font << /F1 3 0 R >> >> /Contents {contentId} 0 R >>");
             objects.Add($"<< /Length {Encoding.ASCII.GetByteCount(page.Content)} >>\nstream\n{page.Content}\nendstream");
         }
 

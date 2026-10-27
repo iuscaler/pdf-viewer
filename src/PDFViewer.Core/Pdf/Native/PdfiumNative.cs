@@ -76,4 +76,195 @@ internal static partial class PdfiumNative
     [LibraryImport(Lib)]
     public static partial void FPDF_RenderPageBitmap(
         nint bitmap, nint page, int startX, int startY, int sizeX, int sizeY, int rotate, int flags);
+
+    /// <summary>PDF 좌표(왼쪽 아래 원점)를 장치 좌표(왼쪽 위 원점, 페이지 회전 반영)로 바꾼다.</summary>
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDF_PageToDevice(nint page, int startX, int startY, int sizeX, int sizeY,
+        int rotate, double pageX, double pageY, out int deviceX, out int deviceY);
+
+    // ---- 텍스트 (fpdf_text.h) ----
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct FS_RECTF
+    {
+        public float Left;
+        public float Top;
+        public float Right;
+        public float Bottom;
+    }
+
+    [LibraryImport(Lib)]
+    public static partial nint FPDFText_LoadPage(nint page);
+
+    [LibraryImport(Lib)]
+    public static partial void FPDFText_ClosePage(nint textPage);
+
+    [LibraryImport(Lib)]
+    public static partial int FPDFText_CountChars(nint textPage);
+
+    [LibraryImport(Lib)]
+    public static partial uint FPDFText_GetUnicode(nint textPage, int index);
+
+    /// <summary>PDFium이 줄바꿈 등을 위해 끼워 넣은 문자면 1.</summary>
+    [LibraryImport(Lib)]
+    public static partial int FPDFText_IsGenerated(nint textPage, int index);
+
+    /// <summary>글꼴의 위아래 여백까지 포함한 글자 상자 (PDF 좌표).</summary>
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFText_GetLooseCharBox(nint textPage, int index, out FS_RECTF rect);
+
+    // ---- 메모리에서 열기, 좌표 변환 ----
+
+    /// <summary>메모리 버퍼에서 문서를 연다. 버퍼는 문서를 닫을 때까지 유지해야 한다.</summary>
+    [LibraryImport(Lib, StringMarshalling = StringMarshalling.Utf8)]
+    public static partial nint FPDF_LoadMemDocument64(nint dataBuffer, nuint size, string? password);
+
+    /// <summary>장치 좌표(왼쪽 위 원점, 페이지 회전 반영)를 PDF 좌표로 바꾼다.</summary>
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDF_DeviceToPage(nint page, int startX, int startY, int sizeX, int sizeY,
+        int rotate, int deviceX, int deviceY, out double pageX, out double pageY);
+
+    // ---- 주석 (fpdf_annot.h) ----
+
+    public const int FPDF_ANNOT_HIGHLIGHT = 9;
+    public const int FPDF_ANNOT_INK = 15;
+    public const int FPDF_ANNOT_FLAG_PRINT = 1 << 2;
+    public const int FPDF_ANNOT_APPEARANCEMODE_NORMAL = 0;
+    public const int FPDFANNOT_COLORTYPE_Color = 0;
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct FS_POINTF
+    {
+        public float X;
+        public float Y;
+    }
+
+    /// <summary>사각형 네 꼭짓점. 관례상 왼쪽 위, 오른쪽 위, 왼쪽 아래, 오른쪽 아래 순서.</summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public struct FS_QUADPOINTSF
+    {
+        public float X1, Y1, X2, Y2, X3, Y3, X4, Y4;
+    }
+
+    [LibraryImport(Lib)]
+    public static partial nint FPDFPage_CreateAnnot(nint page, int subtype);
+
+    [LibraryImport(Lib)]
+    public static partial int FPDFPage_GetAnnotCount(nint page);
+
+    [LibraryImport(Lib)]
+    public static partial nint FPDFPage_GetAnnot(nint page, int index);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFPage_RemoveAnnot(nint page, int index);
+
+    [LibraryImport(Lib)]
+    public static partial void FPDFPage_CloseAnnot(nint annot);
+
+    [LibraryImport(Lib)]
+    public static partial int FPDFAnnot_GetSubtype(nint annot);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_SetRect(nint annot, in FS_RECTF rect);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_SetColor(nint annot, int type, uint r, uint g, uint b, uint a);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_SetFlags(nint annot, int flags);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_SetBorder(nint annot, float horizontalRadius, float verticalRadius,
+        float borderWidth);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_SetStringValue(nint annot,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string key, [MarshalAs(UnmanagedType.LPWStr)] string value);
+
+    /// <summary>값을 UTF-16으로 buffer에 쓰고, 끝의 0을 포함한 바이트 수를 돌려준다.</summary>
+    [LibraryImport(Lib)]
+    public static unsafe partial uint FPDFAnnot_GetStringValue(nint annot,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string key, char* buffer, uint bufferLength);
+
+    /// <summary>외관 스트림을 설정한다. 빈 문자열이면 비어 있는 스트림을 만든다(BBox = 주석 사각형).</summary>
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_SetAP(nint annot, int appearanceMode,
+        [MarshalAs(UnmanagedType.LPWStr)] string? value);
+
+    /// <summary>Ink 주석의 InkList에 획 하나를 추가한다. 추가된 획의 번호를 돌려주고, 실패하면 -1.</summary>
+    [LibraryImport(Lib)]
+    public static partial int FPDFAnnot_AddInkStroke(nint annot, FS_POINTF[] points, nuint pointCount);
+
+    /// <summary>경로 등의 페이지 객체를 주석 외관에 추가한다. 성공하면 객체의 소유권이 주석으로 넘어간다.</summary>
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_AppendObject(nint annot, nint pageObject);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFAnnot_AppendAttachmentPoints(nint annot, in FS_QUADPOINTSF quadPoints);
+
+    // ---- 페이지 객체 (fpdf_edit.h) ----
+
+    public const int FPDF_FILLMODE_WINDING = 2;
+
+    [LibraryImport(Lib)]
+    public static partial nint FPDFPageObj_CreateNewPath(float x, float y);
+
+    [LibraryImport(Lib)]
+    public static partial void FPDFPageObj_Destroy(nint pageObject);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFPath_MoveTo(nint path, float x, float y);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFPath_LineTo(nint path, float x, float y);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFPath_Close(nint path);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFPath_SetDrawMode(nint path, int fillMode,
+        [MarshalAs(UnmanagedType.Bool)] bool stroke);
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static partial bool FPDFPageObj_SetFillColor(nint pageObject, uint r, uint g, uint b, uint a);
+
+    [LibraryImport(Lib)]
+    public static partial void FPDFPageObj_SetBlendMode(nint pageObject,
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string blendMode);
+
+    // ---- 저장 (fpdf_save.h) ----
+
+    public const uint FPDF_INCREMENTAL = 1 << 0;
+
+    /// <summary>
+    /// FPDF_FILEWRITE 구조체. PDFium은 앞의 두 필드만 알고, 뒤의 Stream은 콜백에서 쓸 출력 대상(GCHandle)이다.
+    /// </summary>
+    [StructLayout(LayoutKind.Sequential)]
+    public unsafe struct FileWrite
+    {
+        public int Version;
+        public delegate* unmanaged[Cdecl]<FileWrite*, void*, uint, int> WriteBlock;
+        public nint Stream;
+    }
+
+    [LibraryImport(Lib)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    public static unsafe partial bool FPDF_SaveAsCopy(nint document, FileWrite* fileWrite, uint flags);
 }

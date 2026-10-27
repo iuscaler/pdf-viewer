@@ -114,6 +114,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
             Dispatcher);
         _zoomSettleTimer.Stop();
         InitializeInk();
+        InitializeHighlight();
         Loaded += (_, _) =>
         {
             _dpiScale = VisualTreeHelper.GetDpi(this).DpiScaleX;
@@ -186,6 +187,12 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         _details.Clear();
         _failedPages.Clear();
         _inkDrawings.Clear();
+        _highlightDrawings.Clear();
+        _addedRevisions.Clear();
+        _liveStroke = null;
+        _pageRevisions.Clear();
+        ResetPageTexts();
+        RecreateAnnotationSync();
         _offsetX = _offsetY = 0;
 
         if (Document is { } document)
@@ -592,6 +599,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         UpdateCurrentPage();
         UpdateRenderRequests();
         UpdateInkCanvasAttributes();
+        EnsureVisibleTextLoaded();
     }
 
     /// <summary>연속 스크롤에서는 화면에서 가장 넓게 보이는 페이지를 현재 페이지로 삼는다.</summary>
@@ -674,19 +682,32 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         var (first, last) = VisiblePages;
         var requests = new List<RenderRequest>();
 
-        // 1순위: 화면에 보이는 페이지 전체 비트맵
+        // 1순위: 화면에 보이는데 아직 아무 비트맵도 없는 페이지 (빈 페이지가 보이지 않도록)
         for (var i = first; i <= last; i++)
         {
-            AddFullPageRequest(i, requests);
+            if (!_pageImages.TryPeek(i, out _))
+            {
+                AddFullPageRequest(i, requests);
+            }
         }
 
-        // 2순위: 크게 확대했을 때 화면에 보이는 부분의 고해상도 렌더링
+        // 2순위: 크게 확대했을 때 화면에 보이는 부분의 고해상도 렌더링.
+        // 주석이 바뀐 페이지는 실제로 화면에 보이는 이 영역부터 다시 그려야 빨리 최신 내용으로 바뀐다.
         for (var i = first; i <= last; i++)
         {
             AddDetailRequest(i, visible, requests);
         }
 
-        // 3순위: 미리 렌더링
+        // 3순위: 화면에 보이는 페이지의 전체 비트맵 (배율이나 주석이 바뀐 경우)
+        for (var i = first; i <= last; i++)
+        {
+            if (_pageImages.TryPeek(i, out _))
+            {
+                AddFullPageRequest(i, requests);
+            }
+        }
+
+        // 4순위: 미리 렌더링
         foreach (var page in GetPrefetchPages(visible, first, last))
         {
             AddFullPageRequest(page, requests);
@@ -756,14 +777,16 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         var (width, height) = GetPagePixelSize(pageIndex);
         (width, height) = LimitFullPageSize(width, height);
 
+        var revision = PageRevision(pageIndex);
         var hasImage = _pageImages.TryPeek(pageIndex, out var image);
-        if (hasImage && (_zoomSettling || (image.PageWidth == width && image.PageHeight == height)))
+        if (hasImage && (_zoomSettling
+                         || (image.PageWidth == width && image.PageHeight == height && image.Revision == revision)))
         {
             // 확대/축소 중에는 기존 비트맵을 늘려서 쓰고, 새로 렌더링하지 않는다.
             return;
         }
 
-        requests.Add(RenderRequest.FullPage(pageIndex, width, height));
+        requests.Add(RenderRequest.FullPage(pageIndex, width, height, revision));
     }
 
     private void AddDetailRequest(int pageIndex, LayoutRect visible, List<RenderRequest> requests)
@@ -781,8 +804,10 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
             return;
         }
 
+        var revision = PageRevision(pageIndex);
         if (_details.TryGetValue(pageIndex, out var detail)
             && detail.Request.PageWidth == width
+            && detail.Request.Revision == revision
             && detail.Request.Region.Contains(needed))
         {
             return;
@@ -793,7 +818,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
             visible.X - visible.Width / 4, visible.Y - visible.Height / 4,
             visible.Width * 1.5, visible.Height * 1.5);
         var region = ToPagePixels(pageRect.Intersect(margin), pageRect, width, height);
-        requests.Add(new RenderRequest(pageIndex, width, height, region));
+        requests.Add(new RenderRequest(pageIndex, width, height, region, revision));
     }
 
     /// <summary>문서 좌표 사각형을 페이지 픽셀 좌표 사각형으로 바꾼다.</summary>
@@ -833,10 +858,13 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
 
             if (request.IsFullPage)
             {
-                _pageImages.Set(request.PageIndex, new PageImage(source, request.PageWidth, request.PageHeight));
+                _pageImages.Set(request.PageIndex,
+                    new PageImage(source, request.PageWidth, request.PageHeight, request.Revision));
             }
-            else if (GetPagePixelSize(request.PageIndex).Width == request.PageWidth)
+            else if (GetPagePixelSize(request.PageIndex).Width == request.PageWidth
+                     && request.Revision == PageRevision(request.PageIndex))
             {
+                // 주석이 바뀌기 전 내용의 상세 영역은 쓰지 않는다(전체 비트맵 + 임시 주석 표시로 대신한다).
                 _details[request.PageIndex] = new DetailImage(source, request);
             }
 
@@ -895,26 +923,35 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         // 빈 곳에서도 마우스 휠 이벤트를 받도록 투명 배경을 그린다.
         dc.DrawRectangle(Brushes.Transparent, null, new Rect(RenderSize));
 
+        // 화면 밖으로 걸친 페이지를 잘라서, 그린 내용의 범위가 정확히 뷰 크기가 되게 한다.
+        // (곱하기 효과는 그린 내용 범위를 입력 크기로 쓰므로, 범위가 커지면 형광펜 레이어가 어긋난다.)
+        dc.PushClip(new RectangleGeometry(new Rect(RenderSize)));
+        _visiblePageRects.Clear();
         var (first, last) = VisiblePages;
         for (var i = first; i <= last; i++)
         {
             DrawPage(dc, i);
         }
 
+        DrawLivePen(dc);
         DrawToolOverlay(dc);
+        dc.Pop();
+        UpdateHighlightOverlay();
     }
 
     private void DrawPage(DrawingContext dc, int pageIndex)
     {
         var (width, height) = GetPagePixelSize(pageIndex);
         var rect = DocumentToViewSnapped(_layout.PageRects[pageIndex], width, height);
+        _visiblePageRects.Add((pageIndex, rect));
 
         dc.DrawRectangle(ShadowBrush, null, new Rect(rect.X + 1, rect.Y + 2, rect.Width, rect.Height));
         dc.DrawRectangle(PageBrush, null, rect);
 
-        if (_pageImages.TryGetValue(pageIndex, out var image))
+        var hasImage = _pageImages.TryGetValue(pageIndex, out var image);
+        if (hasImage)
         {
-            dc.DrawImage(image.Bitmap, rect);
+            dc.DrawImage(image!.Bitmap, rect);
         }
 
         if (_details.TryGetValue(pageIndex, out var detail) && detail.Request.PageWidth == width)
@@ -925,7 +962,13 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
                 rect.X + region.X * scale, rect.Y + region.Y * scale, region.Width * scale, region.Height * scale));
         }
 
-        DrawInk(dc, pageIndex, rect);
+        // PDF에 반영된 주석은 PDFium이 페이지 비트맵에 그린다. 화면에 보이는 비트맵이 아직 바뀌기 전 내용이면
+        // (방금 그린 획이 다시 렌더링되기 전) WPF로 임시로 그려서 빈틈이 보이지 않게 한다.
+        if (IsShowingStaleContent(pageIndex))
+        {
+            DrawInk(dc, pageIndex, rect);
+        }
+        DrawTextSelection(dc, pageIndex, rect);
 
         if (_failedPages.Contains(pageIndex))
         {
@@ -936,6 +979,21 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
 
         dc.DrawRectangle(null, PageBorderPen, rect);
     }
+
+    /// <summary>
+    /// 화면에 보이는 비트맵의 리비전 (아직 비트맵이 없으면 -1). 상세 영역이 그려지고 있으면 그것을 기준으로 한다
+    /// (상세 영역이 화면에 보이는 부분을 모두 덮으므로).
+    /// </summary>
+    private int ShownRevision(int pageIndex)
+    {
+        var width = GetPagePixelSize(pageIndex).Width;
+        return _details.TryGetValue(pageIndex, out var detail) && detail.Request.PageWidth == width
+            ? detail.Request.Revision
+            : _pageImages.TryPeek(pageIndex, out var image) ? image.Revision : -1;
+    }
+
+    /// <summary>화면에 보이는 비트맵이 최신 주석을 반영하기 전 것인지 여부.</summary>
+    private bool IsShowingStaleContent(int pageIndex) => ShownRevision(pageIndex) != PageRevision(pageIndex);
 
     protected override int VisualChildrenCount => 1;
 
@@ -1089,7 +1147,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
     }
 
     /// <summary>페이지 전체 비트맵. 페이지를 PageWidth x PageHeight 픽셀로 렌더링한 결과다.</summary>
-    private sealed record PageImage(BitmapSource Bitmap, int PageWidth, int PageHeight);
+    private sealed record PageImage(BitmapSource Bitmap, int PageWidth, int PageHeight, int Revision);
 
     /// <summary>크게 확대했을 때 화면에 보이는 부분만 원래 해상도로 렌더링한 결과.</summary>
     private sealed record DetailImage(BitmapSource Bitmap, RenderRequest Request);

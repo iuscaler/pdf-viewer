@@ -9,17 +9,17 @@ public sealed class AnnotationSetTests
         new(page, [new InkPoint(0, y, 0.5f), new InkPoint(100, y, 0.5f)], 0xFF000000, 2);
 
     [Fact]
-    public void AddStroke_StoresPerPageAndRaisesEvents()
+    public void Add_StoresPerPageAndRaisesEvents()
     {
         var set = new AnnotationSet();
         var changedPages = new List<int>();
         set.PageChanged += changedPages.Add;
 
         var stroke = Line(page: 3);
-        set.AddStroke(stroke);
+        set.Add(stroke);
 
-        Assert.Equal([stroke], set.GetStrokes(3));
-        Assert.Empty(set.GetStrokes(0));
+        Assert.Equal([stroke], set.GetAnnotations(3));
+        Assert.Empty(set.GetAnnotations(0));
         Assert.Equal([3], changedPages);
         Assert.Equal([3], set.PagesWithAnnotations);
         Assert.True(set.IsModified);
@@ -32,24 +32,24 @@ public sealed class AnnotationSetTests
         var set = new AnnotationSet();
         var a = Line();
         var b = Line(y: 50);
-        set.AddStroke(a);
-        set.AddStroke(b);
-        set.RemoveStrokes([a]);
+        set.Add(a);
+        set.Add(b);
+        set.Remove([a]);
 
-        Assert.Equal([b], set.GetStrokes(0));
+        Assert.Equal([b], set.GetAnnotations(0));
 
         set.Undo(); // 지운 a 되살리기
-        Assert.Equal(2, set.GetStrokes(0).Count);
+        Assert.Equal(2, set.GetAnnotations(0).Count);
 
         set.Undo(); // b 추가 취소
         set.Undo(); // a 추가 취소
-        Assert.Empty(set.GetStrokes(0));
+        Assert.Empty(set.GetAnnotations(0));
         Assert.False(set.CanUndo);
 
         set.Redo();
         set.Redo();
         set.Redo();
-        Assert.Equal([b], set.GetStrokes(0));
+        Assert.Equal([b], set.GetAnnotations(0));
         Assert.False(set.CanRedo);
     }
 
@@ -57,10 +57,10 @@ public sealed class AnnotationSetTests
     public void NewChange_ClearsRedo()
     {
         var set = new AnnotationSet();
-        set.AddStroke(Line());
+        set.Add(Line());
         set.Undo();
 
-        set.AddStroke(Line(y: 10));
+        set.Add(Line(y: 10));
 
         Assert.False(set.CanRedo);
     }
@@ -71,20 +71,20 @@ public sealed class AnnotationSetTests
         var set = new AnnotationSet();
         var a = Line();
         var b = Line(y: 50);
-        set.AddStroke(a);
-        set.AddStroke(b);
+        set.Add(a);
+        set.Add(b);
 
         using (set.BeginGroup())
         {
-            set.RemoveStrokes([a]);
-            set.RemoveStrokes([b]);
+            set.Remove([a]);
+            set.Remove([b]);
         }
 
-        Assert.Empty(set.GetStrokes(0));
+        Assert.Empty(set.GetAnnotations(0));
 
         set.Undo();
 
-        Assert.Equal(2, set.GetStrokes(0).Count);
+        Assert.Equal(2, set.GetAnnotations(0).Count);
     }
 
     [Fact]
@@ -103,11 +103,11 @@ public sealed class AnnotationSetTests
     public void IsModified_TracksSavedPoint()
     {
         var set = new AnnotationSet();
-        set.AddStroke(Line());
+        set.Add(Line());
         set.MarkSaved();
         Assert.False(set.IsModified);
 
-        set.AddStroke(Line(y: 10));
+        set.Add(Line(y: 10));
         Assert.True(set.IsModified);
 
         set.Undo();
@@ -117,7 +117,7 @@ public sealed class AnnotationSetTests
         Assert.True(set.IsModified);
 
         // 저장 시점보다 앞으로 돌아간 뒤 새로 고치면 다시 저장 상태가 될 수 없다.
-        set.AddStroke(Line(y: 20));
+        set.Add(Line(y: 20));
         set.Undo();
         set.Redo();
         Assert.True(set.IsModified);
@@ -140,8 +140,8 @@ public sealed class AnnotationSetTests
         var set = new AnnotationSet();
         var below = Line();
         var above = Line();
-        set.AddStroke(below);
-        set.AddStroke(above);
+        set.Add(below);
+        set.Add(above);
 
         Assert.Equal([above, below], set.HitTest(0, 50, 0, 1));
         Assert.Empty(set.HitTest(1, 50, 0, 1));

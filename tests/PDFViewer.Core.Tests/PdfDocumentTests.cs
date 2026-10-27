@@ -15,7 +15,7 @@ public sealed class PdfDocumentTests : IDisposable
     [Fact]
     public async Task Open_ReadsPageCountAndSizes()
     {
-        using var doc = await PdfDocument.OpenAsync(_path);
+        await using var doc = await PdfDocument.OpenAsync(_path);
 
         Assert.Equal(2, doc.PageCount);
         Assert.Equal(new PageSize(595, 842), doc.PageSizes[0]);
@@ -50,7 +50,7 @@ public sealed class PdfDocumentTests : IDisposable
     [Fact]
     public async Task Render_FullPage_DrawsContent()
     {
-        using var doc = await PdfDocument.OpenAsync(_path);
+        await using var doc = await PdfDocument.OpenAsync(_path);
 
         // 1pt = 1px 로 렌더링. 검은 사각형은 왼쪽 아래 100x100 영역.
         using var bitmap = await doc.RenderAsync(RenderRequest.FullPage(0, 595, 842));
@@ -64,7 +64,7 @@ public sealed class PdfDocumentTests : IDisposable
     [Fact]
     public async Task Render_Region_DrawsOnlyThatPart()
     {
-        using var doc = await PdfDocument.OpenAsync(_path);
+        await using var doc = await PdfDocument.OpenAsync(_path);
 
         // 페이지 왼쪽 아래 200x200 영역만 렌더링
         var request = new RenderRequest(0, 595, 842, new PixelRect(0, 842 - 200, 200, 200));
@@ -79,7 +79,7 @@ public sealed class PdfDocumentTests : IDisposable
     [Fact]
     public async Task Render_CanceledBeforeStart_Throws()
     {
-        using var doc = await PdfDocument.OpenAsync(_path);
+        await using var doc = await PdfDocument.OpenAsync(_path);
         using var cts = new CancellationTokenSource();
         await cts.CancelAsync();
 
@@ -90,7 +90,7 @@ public sealed class PdfDocumentTests : IDisposable
     [Fact]
     public async Task Scheduler_RendersRequestsInOrder()
     {
-        using var doc = await PdfDocument.OpenAsync(_path);
+        await using var doc = await PdfDocument.OpenAsync(_path);
         using var scheduler = new RenderScheduler(doc);
         var done = new List<int>();
         var allDone = new TaskCompletionSource();

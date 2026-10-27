@@ -23,7 +23,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     [NotifyCanExecuteChangedFor(nameof(ZoomInCommand), nameof(ZoomOutCommand), nameof(ActualSizeCommand),
         nameof(FitWidthCommand), nameof(FitPageCommand), nameof(NextPageCommand), nameof(PreviousPageCommand),
         nameof(FirstPageCommand), nameof(LastPageCommand), nameof(TogglePresentationCommand),
-        nameof(SelectToolCommand), nameof(PenToolCommand), nameof(EraserToolCommand))]
+        nameof(SelectToolCommand), nameof(PenToolCommand), nameof(HighlighterToolCommand),
+        nameof(EraserToolCommand), nameof(SaveCommand), nameof(SaveAsCommand))]
     private PdfDocument? _document;
 
     [ObservableProperty]
@@ -171,7 +172,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
 
     public async Task OpenFileAsync(string path)
     {
-        if (!ConfirmDiscardAnnotations())
+        if (!await ConfirmSaveChangesAsync())
         {
             return;
         }

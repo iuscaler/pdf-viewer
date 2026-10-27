@@ -20,6 +20,7 @@ public partial class MainWindow : Window
     private readonly MainViewModel _viewModel;
     private readonly DispatcherTimer _cursorHideTimer;
     private bool _isFullScreenApplied;
+    private bool _closeConfirmed;
     private WindowState _windowStateBeforeFullScreen;
 
     public MainWindow(MainViewModel viewModel)
@@ -37,11 +38,22 @@ public partial class MainWindow : Window
         };
     }
 
-    private void OnWindowClosing(object? sender, CancelEventArgs e)
+    private async void OnWindowClosing(object? sender, CancelEventArgs e)
     {
-        if (!_viewModel.ConfirmDiscardAnnotations())
+        if (_closeConfirmed || !_viewModel.HasUnsavedChanges)
         {
-            e.Cancel = true;
+            return; // 확인할 것이 없으면 그대로 닫는다.
+        }
+
+        // 저장은 비동기라서 일단 닫기를 취소하고, 확인과 저장이 끝나면 다시 닫는다.
+        // Closing 이벤트 안에서는 Close()를 다시 부를 수 없으므로(예외로 앱이 종료됨),
+        // 이벤트가 끝난 뒤에 확인 창을 띄운다.
+        e.Cancel = true;
+        await Task.Yield();
+        if (await _viewModel.ConfirmSaveChangesAsync())
+        {
+            _closeConfirmed = true;
+            Close();
         }
     }
 
@@ -197,6 +209,14 @@ public partial class MainWindow : Window
     }
 
     #endregion
+
+    private void OnCopyCanExecute(object sender, CanExecuteRoutedEventArgs e) =>
+        e.CanExecute = DocumentView.HasTextSelection;
+
+    private void OnCopyExecuted(object sender, ExecutedRoutedEventArgs e) => DocumentView.CopySelectedText();
+
+    // 펜/형광펜 옵션 팝업이 닫히면 키보드 포커스를 문서로 돌려준다 (팝업 안 컨트롤에 남아 있으면 단축키가 먹지 않음).
+    private void OnToolOptionsClosed(object? sender, EventArgs e) => DocumentScroller.Focus();
 
     private void OnViewMenuButtonClick(object sender, RoutedEventArgs e)
     {

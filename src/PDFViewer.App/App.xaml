@@ -72,8 +72,9 @@
             </Setter>
             <Setter Property="ItemContainerStyle">
                 <Setter.Value>
+                    <!-- ListBoxItem은 클릭될 때 포커스를 받아야 선택되므로 Focusable을 끄면 안 된다. -->
                     <Style TargetType="ListBoxItem">
-                        <Setter Property="Focusable" Value="False" />
+                        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
                         <Setter Property="Template">
                             <Setter.Value>
                                 <ControlTemplate TargetType="ListBoxItem">
@@ -97,6 +98,34 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- 도구 옵션 팝업 -->
+        <Style x:Key="FlyoutStyle" TargetType="Border">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource ToolbarBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="6" />
+            <Setter Property="Padding" Value="12" />
+            <Setter Property="Margin" Value="0,4,8,8" />
+            <Setter Property="Effect">
+                <Setter.Value>
+                    <DropShadowEffect BlurRadius="12" ShadowDepth="2" Opacity="0.2" />
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="FlyoutLabelStyle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#5A5A5A" />
+            <Setter Property="Margin" Value="2,0,0,4" />
+        </Style>
+
+        <DataTemplate x:Key="ColorSwatchTemplate">
+            <Ellipse Width="22" Height="22" Stroke="#30000000" StrokeThickness="1">
+                <Ellipse.Fill>
+                    <SolidColorBrush Color="{Binding}" />
+                </Ellipse.Fill>
+            </Ellipse>
+        </DataTemplate>
 
         <Style x:Key="ToolSeparatorStyle" TargetType="Border">
             <Setter Property="Width" Value="1" />
