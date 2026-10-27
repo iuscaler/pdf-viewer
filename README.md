@@ -183,21 +183,29 @@ dotnet run --project src/PDFViewer.App -- "C:\경로\문서.pdf"
 
 ## 배포용 빌드와 설치
 
-```powershell
-dotnet publish src/PDFViewer.App -p:PublishProfile=win-x64
-```
+두 가지 방식으로 배포합니다. 기능은 같고, 설정(`%APPDATA%\PDFViewer`)도 함께 씁니다.
 
-`publish\win-x64\PDFViewer.exe` 파일 하나가 만들어집니다 (약 160MB). .NET 런타임이 들어 있어서 **다른 PC에 .NET을 설치할 필요가 없습니다.** 설정은 [win-x64.pubxml](src/PDFViewer.App/Properties/PublishProfiles/win-x64.pubxml)에 있습니다.
+| | 런타임 포함형 | 런타임 별도 설치형 |
+|---|---|---|
+| 배포 파일 | `PDFViewer.exe` 하나 (약 160MB) | `PDFViewer-<버전>-win-x64-framework-dependent.zip` (약 4MB, 풀면 8MB 폴더) |
+| 필요한 것 | 없음 | .NET 10 데스크톱 런타임 (PC에 한 번 설치) |
+| 처음 실행 | 약 1.5초 (백신이 큰 실행 파일을 검사) | 약 0.8초 |
+| 그다음 실행 | 약 0.6초 | 약 0.6초 |
+| 빌드 | `dotnet publish src/PDFViewer.App -p:PublishProfile=win-x64` | `dotnet publish src/PDFViewer.App -p:PublishProfile=win-x64-fd` |
+| 설정 파일 | [win-x64.pubxml](src/PDFViewer.App/Properties/PublishProfiles/win-x64.pubxml) | [win-x64-fd.pubxml](src/PDFViewer.App/Properties/PublishProfiles/win-x64-fd.pubxml) |
+
+런타임 별도 설치형은 단일 파일로 묶으면 시작하자마자 런타임 오류로 종료되어서 폴더(zip)로 배포합니다. zip에는 `LICENSE.txt`, `THIRD-PARTY-NOTICES.txt`, `설치 방법.txt`를 함께 넣습니다.
 
 다른 PC에 설치하기 (Windows 10/11 64비트):
-1. `PDFViewer.exe`를 원하는 폴더에 복사합니다. 예: `%LOCALAPPDATA%\Programs\PDFViewer` (관리자 권한 불필요)
+1. **런타임 포함형**: `PDFViewer.exe`를 원하는 폴더에 복사합니다. 예: `%LOCALAPPDATA%\Programs\PDFViewer` (관리자 권한 불필요)
+   **런타임 별도 설치형**: zip을 풀어서 `PDFViewer` 폴더를 통째로 복사합니다. .NET 10 데스크톱 런타임이 없으면 처음 실행할 때 설치 안내 창이 뜹니다. 미리 설치하려면 `winget install Microsoft.DotNet.DesktopRuntime.10`.
 2. 실행 파일을 오른쪽 클릭 → **바탕 화면 / 시작 메뉴에 고정**.
 3. PDF를 기본으로 이 앱으로 열려면: PDF 파일 오른쪽 클릭 → **연결 프로그램** → **다른 앱 선택** → **PC에서 앱 선택**에서 `PDFViewer.exe`를 고르고 **항상** 을 누릅니다.
-4. 서명하지 않은 실행 파일이라 처음 실행할 때 "Windows의 PC 보호" 창이 뜰 수 있습니다: **추가 정보** → **실행**. 인터넷에서 받은 파일이면 파일 속성의 **차단 해제**를 체크해도 됩니다.
+4. 서명하지 않은 실행 파일이라 처음 실행할 때 "Windows의 PC 보호" 창이 뜰 수 있습니다: **추가 정보** → **실행**. 받은 파일(zip이면 압축을 풀기 전)의 속성에서 **차단 해제**를 체크하면 뜨지 않습니다.
 
 - 설정(보기 방식, 펜 색, 최근 파일 등)은 PC마다 `%APPDATA%\PDFViewer\settings.json`에 저장됩니다.
-- 처음 실행할 때 PDFium 등 내장 DLL을 임시 폴더(`%TEMP%\.net\PDFViewer`)에 풀기 때문에 첫 실행만 조금 느립니다.
-- 제거: 실행 파일과 `%APPDATA%\PDFViewer` 폴더를 지우면 됩니다.
+- 런타임 포함형은 처음 실행할 때 PDFium 등 내장 DLL을 임시 폴더(`%TEMP%\.net\PDFViewer`)에 풀기 때문에 첫 실행이 조금 더 느립니다.
+- 제거: 실행 파일(또는 폴더)과 `%APPDATA%\PDFViewer` 폴더를 지우면 됩니다.
 
 ## 라이선스
 
