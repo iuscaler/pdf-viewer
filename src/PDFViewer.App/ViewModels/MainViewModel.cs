@@ -36,7 +36,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
     private ZoomMode _zoomMode = ZoomMode.FitWidth;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsContinuous), nameof(IsPageByPage))]
+    [NotifyPropertyChangedFor(nameof(IsContinuous))]
     private ScrollMode _scrollMode = ScrollMode.Continuous;
 
     [ObservableProperty]
@@ -112,18 +112,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         set => SetFromToggle(value, () => ZoomMode = ZoomMode.FitPage, nameof(IsFitWidth), nameof(IsFitPage));
     }
 
+    /// <summary>연속 스크롤 토글. 끄면 페이지 단위로 넘긴다.</summary>
     public bool IsContinuous
     {
         get => ScrollMode == ScrollMode.Continuous;
-        set => SetFromToggle(value, () => ScrollMode = ScrollMode.Continuous, nameof(IsContinuous),
-            nameof(IsPageByPage));
-    }
-
-    public bool IsPageByPage
-    {
-        get => ScrollMode == ScrollMode.PageByPage;
-        set => SetFromToggle(value, () => ScrollMode = ScrollMode.PageByPage, nameof(IsContinuous),
-            nameof(IsPageByPage));
+        set => ScrollMode = value ? ScrollMode.Continuous : ScrollMode.PageByPage;
     }
 
     public bool IsSinglePage

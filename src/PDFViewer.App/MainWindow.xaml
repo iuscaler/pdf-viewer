@@ -290,41 +290,89 @@
                     <Border Style="{StaticResource ToolSeparatorStyle}" />
 
                     <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
-                                  IsChecked="{Binding IsFitWidth}" Content="너비 맞춤"
-                                  ToolTip="너비 맞춤 (Ctrl+2)" />
+                                  IsChecked="{Binding IsFitWidth}" ToolTip="너비 맞춤 (Ctrl+2)">
+                        <Path Style="{StaticResource IconPathStyle}" Data="{StaticResource FitWidthIcon}" />
+                    </ToggleButton>
                     <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
-                                  IsChecked="{Binding IsFitPage}" Content="페이지 맞춤"
-                                  ToolTip="페이지 맞춤 (Ctrl+0)" />
+                                  IsChecked="{Binding IsFitPage}" ToolTip="페이지 맞춤 (Ctrl+0)">
+                        <Path Style="{StaticResource IconPathStyle}" Data="{StaticResource FitPageIcon}" />
+                    </ToggleButton>
+
+                    <Border Style="{StaticResource ToolSeparatorStyle}" />
+
+                    <!-- 보기 방식 -->
+                    <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
+                                  IsChecked="{Binding IsSinglePage}" ToolTip="1페이지 보기 (Ctrl+4)">
+                        <Path Style="{StaticResource IconPathStyle}" Data="{StaticResource SinglePageIcon}" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
+                                  IsChecked="{Binding IsTwoPage}" ToolTip="2페이지 보기 (Ctrl+5)">
+                        <Path Style="{StaticResource IconPathStyle}" Data="{StaticResource TwoPageIcon}" />
+                    </ToggleButton>
+                    <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
+                                  IsChecked="{Binding IsContinuous}"
+                                  ToolTip="연속 스크롤: 끄면 한 화면씩 보여주고 페이지 끝에서 다음 페이지로 넘어갑니다.">
+                        <Path Style="{StaticResource IconPathStyle}" Data="{StaticResource ContinuousIcon}" />
+                    </ToggleButton>
                 </StackPanel>
 
                 <StackPanel Grid.Column="2" Orientation="Horizontal">
-                    <!-- 보기 방식 메뉴 -->
+                    <!-- 보기 옵션 메뉴 -->
                     <Button x:Name="ViewMenuButton" Style="{StaticResource ToolButtonStyle}"
                             IsEnabled="{Binding IsDocumentOpen}" Click="OnViewMenuButtonClick"
-                            ToolTip="보기 방식: 1페이지 / 2페이지, 표지, 읽는 방향, 스크롤 방식">
+                            ToolTip="보기: 맞춤, 1페이지 / 2페이지, 표지, 스크롤 방식, 읽는 방향">
                         <StackPanel Orientation="Horizontal">
-                            <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE89A;" />
-                            <TextBlock Text="보기" Margin="6,0,4,0" VerticalAlignment="Center" />
+                            <Path Style="{StaticResource IconPathStyle}" Data="{StaticResource BookIcon}" />
                             <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE70D;" FontSize="10"
-                                       VerticalAlignment="Center" />
+                                       Margin="4,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button.ContextMenu>
+                            <!-- 도구 모음의 보기 버튼과 같은 속성에 묶여 있어서 어느 쪽에서 바꿔도 함께 바뀐다. -->
                             <ContextMenu>
+                                <MenuItem Header="너비 맞춤" InputGestureText="Ctrl+2" IsCheckable="True"
+                                          IsChecked="{Binding IsFitWidth}">
+                                    <MenuItem.Icon>
+                                        <Path Style="{StaticResource IconPathStyle}"
+                                              Data="{StaticResource FitWidthIcon}" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="페이지 맞춤" InputGestureText="Ctrl+0" IsCheckable="True"
+                                          IsChecked="{Binding IsFitPage}">
+                                    <MenuItem.Icon>
+                                        <Path Style="{StaticResource IconPathStyle}"
+                                              Data="{StaticResource FitPageIcon}" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <Separator />
                                 <MenuItem Header="1페이지 보기" InputGestureText="Ctrl+4" IsCheckable="True"
-                                          IsChecked="{Binding IsSinglePage}" />
+                                          IsChecked="{Binding IsSinglePage}">
+                                    <MenuItem.Icon>
+                                        <Path Style="{StaticResource IconPathStyle}"
+                                              Data="{StaticResource SinglePageIcon}" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
                                 <MenuItem Header="2페이지 보기" InputGestureText="Ctrl+5" IsCheckable="True"
-                                          IsChecked="{Binding IsTwoPage}" />
+                                          IsChecked="{Binding IsTwoPage}">
+                                    <MenuItem.Icon>
+                                        <Path Style="{StaticResource IconPathStyle}"
+                                              Data="{StaticResource TwoPageIcon}" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="연속 스크롤" IsCheckable="True" IsChecked="{Binding IsContinuous}"
+                                          ToolTip="끄면 한 화면씩 보여주고 페이지 끝에서 다음 페이지로 넘어갑니다.">
+                                    <MenuItem.Icon>
+                                        <Path Style="{StaticResource IconPathStyle}"
+                                              Data="{StaticResource ContinuousIcon}" />
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <Separator />
                                 <MenuItem Header="표지 따로 보기" IsCheckable="True"
                                           IsEnabled="{Binding IsTwoPage}"
                                           IsChecked="{Binding ShowCoverSeparately}"
                                           ToolTip="2페이지 보기에서 첫 페이지(표지)를 혼자 보여줍니다." />
                                 <MenuItem Header="오른쪽에서 왼쪽으로 읽기" IsCheckable="True"
                                           IsChecked="{Binding RightToLeft}"
-                                          ToolTip="만화나 세로쓰기 책처럼 오른쪽 페이지부터 읽습니다. 페이지 단위에서는 ←가 다음 페이지입니다." />
-                                <Separator />
-                                <MenuItem Header="연속 스크롤" IsCheckable="True" IsChecked="{Binding IsContinuous}" />
-                                <MenuItem Header="페이지 단위" IsCheckable="True" IsChecked="{Binding IsPageByPage}"
-                                          ToolTip="한 화면씩 보여주고 페이지 끝에서 다음 페이지로 넘어갑니다." />
+                                          ToolTip="만화나 세로쓰기 책처럼 오른쪽 페이지부터 읽습니다. 연속 스크롤을 끄면 ←가 다음 페이지입니다." />
                             </ContextMenu>
                         </Button.ContextMenu>
                     </Button>

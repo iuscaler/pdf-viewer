@@ -56,6 +56,32 @@
             <Setter Property="FontSize" Value="16" />
         </Style>
 
+        <!-- 아이콘 글꼴에 알맞은 모양이 없는 보기 버튼용 선 아이콘 (16x16 좌표). 도구 모음과 보기 메뉴에 함께 쓴다.
+             비활성 버튼은 버튼 템플릿이 통째로 흐리게 하므로 선 색은 고정이다. -->
+        <Style x:Key="IconPathStyle" TargetType="Path">
+            <Setter Property="Width" Value="16" />
+            <Setter Property="Height" Value="16" />
+            <Setter Property="Stretch" Value="None" />
+            <Setter Property="StrokeThickness" Value="1" />
+            <Setter Property="StrokeLineJoin" Value="Round" />
+            <Setter Property="StrokeStartLineCap" Value="Round" />
+            <Setter Property="StrokeEndLineCap" Value="Round" />
+            <Setter Property="SnapsToDevicePixels" Value="True" />
+            <Setter Property="Stroke" Value="#1A1A1A" />
+        </Style>
+        <!-- 너비 맞춤: 양쪽 끝까지 늘어나는 화살표 -->
+        <Geometry x:Key="FitWidthIcon">M1.5,3 V13 M14.5,3 V13 M3.5,8 H12.5 M5.5,6 L3.5,8 L5.5,10 M10.5,6 L12.5,8 L10.5,10</Geometry>
+        <!-- 페이지 맞춤: 네 모서리 안에 들어간 페이지 -->
+        <Geometry x:Key="FitPageIcon">M5.5,4.5 H10.5 V11.5 H5.5 Z M1.5,4.5 V1.5 H4.5 M11.5,1.5 H14.5 V4.5 M14.5,11.5 V14.5 H11.5 M4.5,14.5 H1.5 V11.5</Geometry>
+        <!-- 1페이지 보기 -->
+        <Geometry x:Key="SinglePageIcon">M4.5,1.5 H11.5 V14.5 H4.5 Z M6.5,5 H9.5 M6.5,7.5 H9.5 M6.5,10 H9.5</Geometry>
+        <!-- 2페이지 보기 -->
+        <Geometry x:Key="TwoPageIcon">M1.5,2.5 H7.5 V13.5 H1.5 Z M8.5,2.5 H14.5 V13.5 H8.5 Z</Geometry>
+        <!-- 연속 스크롤: 위아래로 이어지는 페이지 -->
+        <Geometry x:Key="ContinuousIcon">M4.5,0.5 V5.5 H11.5 V0.5 M4.5,15.5 V8.5 H11.5 V15.5</Geometry>
+        <!-- 보기 옵션 (펼친 책: 표지, 읽는 방향) -->
+        <Geometry x:Key="BookIcon">M8,3.5 C6,2 3.5,2 1.5,2.5 V13.5 C3.5,13 6,13 8,14.5 C10,13 12.5,13 14.5,13.5 V2.5 C12.5,2 10,2 8,3.5 Z M8,3.5 V14.5</Geometry>
+
         <converters:InverseBooleanConverter x:Key="InverseBoolean" />
 
         <!-- 펜 색/굵기처럼 가로로 늘어놓고 하나를 고르는 목록 -->
