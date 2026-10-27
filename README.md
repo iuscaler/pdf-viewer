@@ -199,6 +199,8 @@ dotnet publish src/PDFViewer.App -p:PublishProfile=win-x64
 - 처음 실행할 때 PDFium 등 내장 DLL을 임시 폴더(`%TEMP%\.net\PDFViewer`)에 풀기 때문에 첫 실행만 조금 느립니다.
 - 제거: 실행 파일과 `%APPDATA%\PDFViewer` 폴더를 지우면 됩니다.
 
-## 라이선스 참고
+## 라이선스
 
-- PDFium: BSD-3-Clause 계열 (Apache 2.0 일부 포함). 배포 시 라이선스 고지를 포함해야 합니다.
+이 프로젝트는 **0BSD (Zero-Clause BSD)** 라이선스입니다 ([LICENSE](LICENSE)). 누구나 어떤 목적으로든 자유롭게 쓰고, 고치고, 배포하고, 팔 수 있으며, 저작권 표시를 남길 의무도 없습니다. 대신 아무런 보증도 하지 않습니다.
+
+배포하는 실행 파일에는 PDFium, .NET 런타임, WPF, CommunityToolkit.Mvvm 같은 외부 구성 요소가 함께 들어 있습니다. 이 구성 요소들은 각자의 라이선스(BSD-3-Clause, Apache-2.0, MIT 등)를 따르므로, **실행 파일을 다시 배포할 때는 [THIRD-PARTY-NOTICES.md](THIRD-PARTY-NOTICES.md)와 [third-party-licenses/](third-party-licenses/) 폴더의 고지를 함께 전달해야 합니다.** GitHub 릴리스에는 이 고지들을 하나로 묶은 `THIRD-PARTY-NOTICES.txt`를 함께 올립니다.
