@@ -6,6 +6,7 @@ using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
+using PDFViewer.App.Settings;
 using PDFViewer.App.ViewModels;
 
 namespace PDFViewer.App;
@@ -36,6 +37,50 @@ public partial class MainWindow : Window
             _cursorHideTimer.Stop();
             Mouse.OverrideCursor = Cursors.None;
         };
+
+        RestorePlacement(viewModel.Settings.Window);
+    }
+
+    /// <summary>저장해 둔 창 위치와 크기를 되살린다. 화면 밖이면(모니터 구성이 바뀐 경우) 기본 위치를 쓴다.</summary>
+    private void RestorePlacement(WindowPlacement? placement)
+    {
+        if (placement is null || placement.Width < MinWidth || placement.Height < MinHeight)
+        {
+            return;
+        }
+
+        var bounds = new Rect(placement.Left, placement.Top, placement.Width, placement.Height);
+        var screen = new Rect(SystemParameters.VirtualScreenLeft, SystemParameters.VirtualScreenTop,
+            SystemParameters.VirtualScreenWidth, SystemParameters.VirtualScreenHeight);
+        if (!screen.IntersectsWith(bounds))
+        {
+            return;
+        }
+
+        WindowStartupLocation = WindowStartupLocation.Manual;
+        Left = bounds.Left;
+        Top = bounds.Top;
+        Width = bounds.Width;
+        Height = bounds.Height;
+        if (placement.Maximized)
+        {
+            WindowState = WindowState.Maximized;
+        }
+    }
+
+    private void SaveSettings()
+    {
+        // 전체화면 중이면 전체화면 전 창 상태를 저장한다. RestoreBounds는 최대화/전체화면이어도 일반 상태의 위치다.
+        var bounds = RestoreBounds.IsEmpty ? new Rect(Left, Top, Width, Height) : RestoreBounds;
+        var maximized = _isFullScreenApplied
+            ? _windowStateBeforeFullScreen == WindowState.Maximized
+            : WindowState == WindowState.Maximized;
+        _viewModel.Settings.Window = new WindowPlacement
+        {
+            Left = bounds.Left, Top = bounds.Top, Width = bounds.Width, Height = bounds.Height, Maximized = maximized,
+        };
+        _viewModel.CaptureSettings();
+        _viewModel.Settings.Save();
     }
 
     private async void OnWindowClosing(object? sender, CancelEventArgs e)
@@ -60,6 +105,7 @@ public partial class MainWindow : Window
     protected override void OnClosed(EventArgs e)
     {
         Mouse.OverrideCursor = null;
+        SaveSettings();
         _viewModel.Dispose();
         base.OnClosed(e);
     }
@@ -75,6 +121,68 @@ public partial class MainWindow : Window
             case nameof(MainViewModel.IsFullScreen):
             case nameof(MainViewModel.IsPresentation):
                 ApplyWindowMode();
+                break;
+            case nameof(MainViewModel.IsSearchOpen) when _viewModel.IsSearchOpen:
+                // 검색 창이 열리면 바로 입력할 수 있게 한다 (이미 열려 있을 때 Ctrl+F를 다시 눌러도).
+                Dispatcher.BeginInvoke(() =>
+                {
+                    SearchBox.Focus();
+                    SearchBox.SelectAll();
+                }, DispatcherPriority.Input);
+                break;
+            case nameof(MainViewModel.IsSearchOpen):
+                DocumentScroller.Focus();
+                break;
+        }
+    }
+
+    /// <summary>
+    /// 도구 단축키 V/P/H/E. 창 전체의 KeyBinding으로 걸면 검색 창 같은 글자 입력 칸에 그 글자를 칠 수 없으므로,
+    /// 글자 입력 칸에 포커스가 없을 때만 처리한다.
+    /// </summary>
+    private void HandleToolShortcut(KeyEventArgs e)
+    {
+        if (Keyboard.Modifiers != ModifierKeys.None
+            || Keyboard.FocusedElement is TextBoxBase or PasswordBox)
+        {
+            return;
+        }
+
+        var command = e.Key switch
+        {
+            Key.V => _viewModel.SelectToolCommand,
+            Key.P => _viewModel.PenToolCommand,
+            Key.H => _viewModel.HighlighterToolCommand,
+            Key.E => _viewModel.EraserToolCommand,
+            _ => null,
+        };
+
+        if (command?.CanExecute(null) == true)
+        {
+            command.Execute(null);
+            e.Handled = true;
+        }
+    }
+
+    private void OnSearchBoxPreviewKeyDown(object sender, KeyEventArgs e)
+    {
+        switch (e.Key)
+        {
+            case Key.Enter when Keyboard.Modifiers.HasFlag(ModifierKeys.Shift):
+                _viewModel.PreviousMatchCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Enter:
+                if (_viewModel.NextMatchCommand.CanExecute(null))
+                {
+                    _viewModel.NextMatchCommand.Execute(null);
+                }
+
+                e.Handled = true;
+                break;
+            case Key.Escape:
+                _viewModel.CloseSearchCommand.Execute(null);
+                e.Handled = true;
                 break;
         }
     }
@@ -165,6 +273,7 @@ public partial class MainWindow : Window
     {
         if (!_viewModel.IsPresentation)
         {
+            HandleToolShortcut(e);
             return;
         }
 
@@ -217,6 +326,26 @@ public partial class MainWindow : Window
 
     // 펜/형광펜 옵션 팝업이 닫히면 키보드 포커스를 문서로 돌려준다 (팝업 안 컨트롤에 남아 있으면 단축키가 먹지 않음).
     private void OnToolOptionsClosed(object? sender, EventArgs e) => DocumentScroller.Focus();
+
+    // 현재 페이지가 바뀌면(스크롤, 이동) 썸네일 목록도 그 페이지가 보이도록 따라간다.
+    private void OnThumbnailSelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ThumbnailList.SelectedItem is { } item && ThumbnailList.IsVisible)
+        {
+            ThumbnailList.ScrollIntoView(item);
+        }
+    }
+
+    private void OnRecentMenuButtonClick(object sender, RoutedEventArgs e)
+    {
+        if (RecentMenuButton.ContextMenu is { } menu)
+        {
+            menu.PlacementTarget = RecentMenuButton;
+            menu.Placement = PlacementMode.Bottom;
+            menu.DataContext = DataContext;
+            menu.IsOpen = true;
+        }
+    }
 
     private void OnViewMenuButtonClick(object sender, RoutedEventArgs e)
     {

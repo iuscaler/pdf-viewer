@@ -969,6 +969,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
             DrawInk(dc, pageIndex, rect);
         }
         DrawTextSelection(dc, pageIndex, rect);
+        DrawSearchMatches(dc, pageIndex, rect);
 
         if (_failedPages.Contains(pageIndex))
         {

@@ -45,10 +45,11 @@
         <KeyBinding Modifiers="Control" Key="Z" Command="{Binding UndoCommand}" />
         <KeyBinding Modifiers="Control" Key="Y" Command="{Binding RedoCommand}" />
         <KeyBinding Modifiers="Control+Shift" Key="Z" Command="{Binding RedoCommand}" />
-        <KeyBinding Key="V" Command="{Binding SelectToolCommand}" />
-        <KeyBinding Key="P" Command="{Binding PenToolCommand}" />
-        <KeyBinding Key="H" Command="{Binding HighlighterToolCommand}" />
-        <KeyBinding Key="E" Command="{Binding EraserToolCommand}" />
+        <!-- 도구 단축키(V/P/H/E)는 글자 입력 칸에서 막아야 해서 MainWindow.xaml.cs의 PreviewKeyDown에서 처리한다. -->
+        <KeyBinding Modifiers="Control" Key="F" Command="{Binding OpenSearchCommand}" />
+        <KeyBinding Modifiers="Control" Key="T" Command="{Binding ToggleThumbnailsCommand}" />
+        <KeyBinding Key="F3" Command="{Binding NextMatchCommand}" />
+        <KeyBinding Modifiers="Shift" Key="F3" Command="{Binding PreviousMatchCommand}" />
     </Window.InputBindings>
 
     <Window.CommandBindings>
@@ -74,12 +75,36 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Grid.Column="0" Orientation="Horizontal">
+                    <ToggleButton Style="{StaticResource ToolButtonStyle}" IsEnabled="{Binding IsDocumentOpen}"
+                                  IsChecked="{Binding IsThumbnailsOpen}" ToolTip="페이지 썸네일 (Ctrl+T)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE90C;" />
+                    </ToggleButton>
                     <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding OpenCommand}"
                             ToolTip="열기 (Ctrl+O)">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE8E5;" />
                             <TextBlock Text="열기" Margin="6,0,0,0" VerticalAlignment="Center" />
                         </StackPanel>
+                    </Button>
+                    <!-- 최근 파일 -->
+                    <Button x:Name="RecentMenuButton" Style="{StaticResource ToolButtonStyle}" MinWidth="16"
+                            Padding="2,0" IsEnabled="{Binding HasRecentFiles}" Click="OnRecentMenuButtonClick"
+                            ToolTip="최근 파일">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE70D;" FontSize="10" />
+                        <Button.ContextMenu>
+                            <ContextMenu ItemsSource="{Binding RecentFiles}">
+                                <ContextMenu.ItemContainerStyle>
+                                    <Style TargetType="MenuItem">
+                                        <Setter Property="Header" Value="{Binding FileName}" />
+                                        <Setter Property="ToolTip" Value="{Binding Path}" />
+                                        <Setter Property="Command"
+                                                Value="{Binding DataContext.OpenRecentCommand,
+                                                        RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                        <Setter Property="CommandParameter" Value="{Binding}" />
+                                    </Style>
+                                </ContextMenu.ItemContainerStyle>
+                            </ContextMenu>
+                        </Button.ContextMenu>
                     </Button>
                     <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding SaveCommand}"
                             ToolTip="저장 (Ctrl+S) / 다른 이름으로 저장 (Ctrl+Shift+S)">
@@ -303,6 +328,10 @@
 
                     <Border Style="{StaticResource ToolSeparatorStyle}" />
 
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding OpenSearchCommand}"
+                            ToolTip="검색 (Ctrl+F)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE721;" />
+                    </Button>
                     <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding ToggleFullScreenCommand}"
                             ToolTip="전체화면 (F11)">
                         <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE740;" />
@@ -316,7 +345,82 @@
         </Border>
 
         <Grid x:Name="DocumentArea" Grid.Row="1" Background="{StaticResource DocumentBackground}">
-            <ScrollViewer x:Name="DocumentScroller" CanContentScroll="True"
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- 썸네일 사이드바 -->
+            <Border Grid.Column="0" Background="{StaticResource ToolbarBackground}"
+                    BorderBrush="{StaticResource ToolbarBorder}" BorderThickness="0,0,1,0">
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Setter Property="Visibility" Value="Collapsed" />
+                        <Style.Triggers>
+                            <MultiDataTrigger>
+                                <MultiDataTrigger.Conditions>
+                                    <Condition Binding="{Binding IsThumbnailsOpen}" Value="True" />
+                                    <Condition Binding="{Binding IsDocumentOpen}" Value="True" />
+                                    <Condition Binding="{Binding IsPresentation}" Value="False" />
+                                </MultiDataTrigger.Conditions>
+                                <Setter Property="Visibility" Value="Visible" />
+                            </MultiDataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <ListBox x:Name="ThumbnailList" Width="168" BorderThickness="0" Background="Transparent"
+                         ItemsSource="{Binding Thumbnails}"
+                         SelectedIndex="{Binding CurrentPageIndex}"
+                         SelectionChanged="OnThumbnailSelectionChanged"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                         VirtualizingPanel.IsVirtualizing="True"
+                         VirtualizingPanel.VirtualizationMode="Recycling"
+                         VirtualizingPanel.ScrollUnit="Pixel">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                            <Setter Property="HorizontalContentAlignment" Value="Center" />
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Bd" Margin="6,4" Padding="6" CornerRadius="6"
+                                                Background="Transparent">
+                                            <ContentPresenter HorizontalAlignment="Center" />
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background"
+                                                        Value="{StaticResource ButtonHover}" />
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background"
+                                                        Value="{StaticResource ButtonChecked}" />
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <StackPanel>
+                                <Border Background="White" BorderBrush="#40000000" BorderThickness="1">
+                                    <controls:PageThumbnail
+                                        Width="{x:Static vm:MainViewModel.ThumbnailWidth}" Height="{Binding Height}"
+                                        Document="{Binding DataContext.Document,
+                                                   RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                        PageIndex="{Binding PageIndex}" Revision="{Binding Revision}" />
+                                </Border>
+                                <TextBlock Text="{Binding PageNumber}" HorizontalAlignment="Center" Margin="0,4,0,0"
+                                           Foreground="#5A5A5A" FontSize="12" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <ScrollViewer x:Name="DocumentScroller" Grid.Column="1" CanContentScroll="True"
                           HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Visible"
                           PreviewMouseLeftButtonDown="OnDocumentPreviewMouseLeftButtonDown"
                           PreviewMouseRightButtonDown="OnDocumentPreviewMouseRightButtonDown">
@@ -334,11 +438,13 @@
                                           PenWidth="{Binding PenWidth}"
                                           HighlighterColor="{Binding HighlighterColor}"
                                           HighlighterWidth="{Binding HighlighterWidth}"
+                                          SearchResults="{Binding SearchResults}"
+                                          CurrentSearchMatch="{Binding CurrentSearchMatch, Mode=OneWay}"
                                           CurrentPageIndex="{Binding CurrentPageIndex}" />
             </ScrollViewer>
 
             <!-- 문서가 없을 때 안내 -->
-            <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel.Style>
                     <Style TargetType="StackPanel">
                         <Setter Property="Visibility" Value="Collapsed" />
@@ -355,9 +461,62 @@
                            FontSize="14" Foreground="#5A5A5A" HorizontalAlignment="Center" />
                 <Button Command="{Binding OpenCommand}" Content="PDF 열기" Padding="16,6"
                         HorizontalAlignment="Center" />
+
+                <!-- 최근 파일 -->
+                <StackPanel Margin="0,28,0,0" Width="420"
+                            Visibility="{Binding HasRecentFiles, Converter={StaticResource BoolToVisibility}}">
+                    <DockPanel Margin="4,0,4,6">
+                        <Button DockPanel.Dock="Right" Style="{StaticResource ToolButtonStyle}" Height="24"
+                                FontSize="12" Foreground="#5A5A5A" Content="목록 지우기"
+                                Command="{Binding ClearRecentFilesCommand}" />
+                        <TextBlock Text="최근 파일" Foreground="#5A5A5A" VerticalAlignment="Center" />
+                    </DockPanel>
+                    <ItemsControl ItemsSource="{Binding RecentFiles}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Button Style="{StaticResource ToolButtonStyle}" Height="Auto" Padding="10,6"
+                                        HorizontalContentAlignment="Stretch" ToolTip="{Binding Path}"
+                                        Command="{Binding DataContext.OpenRecentCommand,
+                                                  RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}">
+                                    <StackPanel Width="390">
+                                        <TextBlock Text="{Binding FileName}" TextTrimming="CharacterEllipsis" />
+                                        <TextBlock Text="{Binding Folder}" FontSize="11" Foreground="#7A7A7A"
+                                                   TextTrimming="CharacterEllipsis" />
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
             </StackPanel>
 
-            <ProgressBar IsIndeterminate="True" Height="3" VerticalAlignment="Top"
+            <!-- 검색 창 (Ctrl+F) -->
+            <Border Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,8,24,0"
+                    Style="{StaticResource FlyoutStyle}" Padding="6"
+                    Visibility="{Binding IsSearchOpen, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBox x:Name="SearchBox" Width="220" Height="28" VerticalContentAlignment="Center"
+                             Text="{Binding SearchText, UpdateSourceTrigger=PropertyChanged}"
+                             PreviewKeyDown="OnSearchBoxPreviewKeyDown" />
+                    <TextBlock Text="{Binding SearchStatus}" MinWidth="64" Margin="8,0" Foreground="#5A5A5A"
+                               VerticalAlignment="Center" TextAlignment="Center" />
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding PreviousMatchCommand}"
+                            ToolTip="이전 결과 (Shift+Enter, Shift+F3)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE70E;" />
+                    </Button>
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding NextMatchCommand}"
+                            ToolTip="다음 결과 (Enter, F3)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE70D;" />
+                    </Button>
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding CloseSearchCommand}"
+                            ToolTip="닫기 (Esc)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE711;" FontSize="12" />
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <ProgressBar Grid.ColumnSpan="2" IsIndeterminate="True" Height="3" VerticalAlignment="Top"
                          Visibility="{Binding IsLoading, Converter={StaticResource BoolToVisibility}}" />
         </Grid>
     </Grid>

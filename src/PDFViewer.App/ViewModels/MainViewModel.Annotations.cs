@@ -103,6 +103,8 @@ public sealed partial class MainViewModel
         {
             newValue.HistoryChanged += OnAnnotationHistoryChanged;
         }
+
+        HookThumbnailUpdates(oldValue, newValue);
     }
 
     private void OnAnnotationHistoryChanged()

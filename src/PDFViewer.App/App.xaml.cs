@@ -1,5 +1,6 @@
 ﻿using System.IO;
 using System.Windows;
+using PDFViewer.App.Settings;
 using PDFViewer.App.ViewModels;
 
 namespace PDFViewer.App;
@@ -10,7 +11,7 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        var viewModel = new MainViewModel();
+        var viewModel = new MainViewModel(AppSettings.Load());
         var window = new MainWindow(viewModel);
         MainWindow = window;
         window.Show();

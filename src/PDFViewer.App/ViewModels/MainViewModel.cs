@@ -24,7 +24,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(FitWidthCommand), nameof(FitPageCommand), nameof(NextPageCommand), nameof(PreviousPageCommand),
         nameof(FirstPageCommand), nameof(LastPageCommand), nameof(TogglePresentationCommand),
         nameof(SelectToolCommand), nameof(PenToolCommand), nameof(HighlighterToolCommand),
-        nameof(EraserToolCommand), nameof(SaveCommand), nameof(SaveAsCommand))]
+        nameof(EraserToolCommand), nameof(SaveCommand), nameof(SaveAsCommand), nameof(OpenSearchCommand),
+        nameof(ToggleThumbnailsCommand))]
     private PdfDocument? _document;
 
     [ObservableProperty]
@@ -180,12 +181,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         IsLoading = true;
         try
         {
-            var document = await PdfDocument.OpenAsync(path);
+            if (await OpenWithPasswordPromptAsync(path) is not { } document)
+            {
+                return; // 암호 입력을 취소했다.
+            }
+
             var old = Document;
+            RememberCurrentDocument();
             CurrentPageIndex = 0;
             Annotations = new AnnotationSet();
             Document = document;
             old?.Dispose();
+            ResetSearch();
+
+            // 전에 보던 페이지로 이동하고, 최근 파일 맨 앞에 둔다.
+            CurrentPageIndex = Math.Clamp(Settings.LastPageOf(document.FilePath), 0, document.PageCount - 1);
+            RememberCurrentDocument();
         }
         catch (PdfException ex)
         {
@@ -195,6 +206,32 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         finally
         {
             IsLoading = false;
+        }
+    }
+
+    /// <summary>
+    /// 문서를 연다. 암호가 필요하면 암호를 물어보고, 틀리면 다시 묻는다. 암호 입력을 취소하면 null.
+    /// </summary>
+    private static async Task<PdfDocument?> OpenWithPasswordPromptAsync(string path)
+    {
+        string? password = null;
+        while (true)
+        {
+            try
+            {
+                return await PdfDocument.OpenAsync(path, password);
+            }
+            catch (PdfException ex) when (ex.Error == PdfError.Password)
+            {
+                var message = password is null
+                    ? $"{Path.GetFileName(path)}은(는) 암호로 보호되어 있습니다."
+                    : "암호가 올바르지 않습니다. 다시 입력하세요.";
+                password = Views.PasswordDialog.Ask(Application.Current.MainWindow, message);
+                if (password is null)
+                {
+                    return null;
+                }
+            }
         }
     }
 
