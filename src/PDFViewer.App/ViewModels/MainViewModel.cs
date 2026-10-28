@@ -25,7 +25,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable
         nameof(FirstPageCommand), nameof(LastPageCommand), nameof(TogglePresentationCommand),
         nameof(SelectToolCommand), nameof(PenToolCommand), nameof(HighlighterToolCommand),
         nameof(EraserToolCommand), nameof(SaveCommand), nameof(SaveAsCommand), nameof(OpenSearchCommand),
-        nameof(ToggleThumbnailsCommand))]
+        nameof(ToggleThumbnailsCommand), nameof(PrintCommand))]
     private PdfDocument? _document;
 
     [ObservableProperty]

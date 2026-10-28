@@ -23,6 +23,7 @@
         <KeyBinding Modifiers="Control" Key="O" Command="{Binding OpenCommand}" />
         <KeyBinding Modifiers="Control" Key="S" Command="{Binding SaveCommand}" />
         <KeyBinding Modifiers="Control+Shift" Key="S" Command="{Binding SaveAsCommand}" />
+        <KeyBinding Modifiers="Control" Key="P" Command="{Binding PrintCommand}" />
         <KeyBinding Modifiers="Control" Key="OemPlus" Command="{Binding ZoomInCommand}" />
         <KeyBinding Modifiers="Control" Key="Add" Command="{Binding ZoomInCommand}" />
         <KeyBinding Modifiers="Control" Key="OemMinus" Command="{Binding ZoomOutCommand}" />
@@ -112,6 +113,10 @@
                     <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding SaveCommand}"
                             ToolTip="저장 (Ctrl+S) / 다른 이름으로 저장 (Ctrl+Shift+S)">
                         <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE74E;" />
+                    </Button>
+                    <Button Style="{StaticResource ToolButtonStyle}" Command="{Binding PrintCommand}"
+                            ToolTip="인쇄 (Ctrl+P)">
+                        <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE749;" />
                     </Button>
 
                     <Border Style="{StaticResource ToolSeparatorStyle}" />
@@ -564,6 +569,16 @@
                             ToolTip="닫기 (Esc)">
                         <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE711;" FontSize="12" />
                     </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- 인쇄 진행 ("인쇄 중 3/10") -->
+            <Border Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="0,12,0,0"
+                    Style="{StaticResource FlyoutStyle}" Padding="16,8"
+                    Visibility="{Binding IsPrinting, Converter={StaticResource BoolToVisibility}}">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE749;" VerticalAlignment="Center" />
+                    <TextBlock Text="{Binding PrintStatus}" Margin="8,0,0,0" VerticalAlignment="Center" />
                 </StackPanel>
             </Border>
 

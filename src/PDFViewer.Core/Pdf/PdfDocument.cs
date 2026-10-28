@@ -9,7 +9,7 @@ namespace PDFViewer.Core.Pdf;
 /// <summary>
 /// 열린 PDF 문서. 네이티브 핸들은 PDFium 스레드에서만 접근하며,
 /// 공개 메서드는 작업을 PDFium 스레드로 넘기는 비동기 메서드다.
-/// 주석 편집은 PdfDocument.Annotations.cs, 저장은 PdfDocument.Save.cs에 있다.
+/// 주석 편집은 PdfDocument.Annotations.cs, 저장은 PdfDocument.Save.cs, 인쇄는 PdfDocument.Print.cs에 있다.
 /// </summary>
 public sealed partial class PdfDocument : IDisposable, IAsyncDisposable
 {
@@ -24,12 +24,13 @@ public sealed partial class PdfDocument : IDisposable, IAsyncDisposable
     private nint _handle;
     private bool _disposed;
 
-    private PdfDocument(string filePath, nint handle, FileBuffer buffer, PageSize[] pageSizes)
+    private PdfDocument(string filePath, nint handle, FileBuffer buffer, PageSize[] pageSizes, uint permissions)
     {
         FilePath = filePath;
         _handle = handle;
         _buffer = buffer;
         PageSizes = pageSizes;
+        AllowsPrinting = (permissions & PdfiumNative.PDF_PERMISSION_PRINT) != 0;
         _pageHandles = new LruCache<int, nint>(
             PageHandleCacheSize, _ => 1, (_, page) => PdfiumNative.FPDF_ClosePage(page));
     }
@@ -41,6 +42,9 @@ public sealed partial class PdfDocument : IDisposable, IAsyncDisposable
 
     /// <summary>각 페이지의 크기 (포인트 단위).</summary>
     public IReadOnlyList<PageSize> PageSizes { get; }
+
+    /// <summary>문서 작성자가 인쇄를 허용했는지 여부 (암호화된 PDF의 사용 권한).</summary>
+    public bool AllowsPrinting { get; }
 
     /// <summary>
     /// 파일을 메모리로 읽어서 연다. PDFium이 원본 파일을 열어 두지 않으므로 저장할 때 원본을 바로 교체할 수 있다.
@@ -80,7 +84,7 @@ public sealed partial class PdfDocument : IDisposable, IAsyncDisposable
                         : new PageSize(595, 842);
                 }
 
-                return new PdfDocument(fullPath, handle, buffer, sizes);
+                return new PdfDocument(fullPath, handle, buffer, sizes, PdfiumNative.FPDF_GetDocPermissions(handle));
             }).ConfigureAwait(false);
         }
         catch

@@ -19,9 +19,13 @@ internal static partial class PdfiumNative
     public const uint FPDF_ERR_SECURITY = 5;
     public const uint FPDF_ERR_PAGE = 6;
 
-    // FPDF_RenderPageBitmap 플래그
+    // FPDF_RenderPageBitmap / FPDF_RenderPage 플래그
     public const int FPDF_ANNOT = 0x01;
     public const int FPDF_LCD_TEXT = 0x02;
+    public const int FPDF_PRINTING = 0x800; // 인쇄용으로 그린다 (주석은 인쇄 플래그가 있는 것만)
+
+    // FPDF_GetDocPermissions 비트 (PDF 표준 보안 처리기의 /P)
+    public const uint PDF_PERMISSION_PRINT = 1 << 2;
 
     // FPDFBitmap 포맷
     public const int FPDFBitmap_BGRx = 3;
@@ -76,6 +80,15 @@ internal static partial class PdfiumNative
     [LibraryImport(Lib)]
     public static partial void FPDF_RenderPageBitmap(
         nint bitmap, nint page, int startX, int startY, int sizeX, int sizeY, int rotate, int flags);
+
+    /// <summary>GDI 장치 컨텍스트(프린터 등)에 페이지를 그린다. 글자와 도형이 벡터로 출력된다 (Windows 전용 API).</summary>
+    [LibraryImport(Lib)]
+    public static partial void FPDF_RenderPage(
+        nint dc, nint page, int startX, int startY, int sizeX, int sizeY, int rotate, int flags);
+
+    /// <summary>문서의 사용 권한 (/P). 암호화되지 않은 문서는 모든 비트가 켜져 있다.</summary>
+    [LibraryImport(Lib)]
+    public static partial uint FPDF_GetDocPermissions(nint document);
 
     /// <summary>PDF 좌표(왼쪽 아래 원점)를 장치 좌표(왼쪽 위 원점, 페이지 회전 반영)로 바꾼다.</summary>
     [LibraryImport(Lib)]
