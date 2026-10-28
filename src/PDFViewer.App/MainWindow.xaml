@@ -476,7 +476,9 @@
                 </ListBox>
             </Border>
 
+            <!-- 키보드 스크롤을 위해 포커스는 받지만, 키보드를 쓴 뒤 문서 테두리에 점선(포커스 표시)은 그리지 않는다. -->
             <ScrollViewer x:Name="DocumentScroller" Grid.Column="1" CanContentScroll="True"
+                          FocusVisualStyle="{x:Null}"
                           HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Visible"
                           PreviewMouseLeftButtonDown="OnDocumentPreviewMouseLeftButtonDown"
                           PreviewMouseRightButtonDown="OnDocumentPreviewMouseRightButtonDown">

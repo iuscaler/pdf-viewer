@@ -22,7 +22,7 @@
     <!-- 실행 파일 이름: PDFViewer.exe -->
     <AssemblyName>PDFViewer</AssemblyName>
     <Product>PDF Viewer</Product>
-    <Version>1.0.2</Version>
+    <Version>1.0.3</Version>
     <!-- 실행 파일 아이콘 (원본: Assets/app.svg) -->
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- 셰이더 컴파일러(d3dcompiler_47.dll) 호출에 포인터를 쓴다 -->
