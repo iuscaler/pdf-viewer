@@ -335,7 +335,7 @@ public sealed partial class PdfDocumentView
         if (delta != 0)
         {
             // 스크롤하면 OnViewChanged → UpdateTextSelectionAfterScroll에서 선택도 따라간다.
-            SetVerticalOffset(VerticalOffset + Math.Clamp(delta, -MaxSelectionScrollStep, MaxSelectionScrollStep));
+            SetWindowOffsetY(_offsetY + Math.Clamp(delta, -MaxSelectionScrollStep, MaxSelectionScrollStep));
         }
     }
 

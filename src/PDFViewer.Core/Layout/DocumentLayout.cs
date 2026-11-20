@@ -258,6 +258,9 @@ public sealed class DocumentLayout
 
     public LayoutRow GetRowOfPage(int pageIndex) => _rows[_rowOfPage[pageIndex]];
 
+    /// <summary>페이지가 놓인 줄의 번호 (<see cref="Rows"/>의 위치).</summary>
+    public int GetRowIndexOfPage(int pageIndex) => _rowOfPage[pageIndex];
+
     /// <summary>줄에 놓인 페이지들을 모두 감싸는 사각형.</summary>
     public LayoutRect GetRowBounds(LayoutRow row)
     {

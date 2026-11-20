@@ -93,6 +93,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
 
     private LayoutOptions _options = new();
     private DocumentLayout _layout = DocumentLayout.Empty;
+    private PageScrollMap? _pageScrollMap;
     private RenderScheduler? _scheduler;
     private int _documentVersion;
     private Size _viewport;
@@ -422,6 +423,22 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
 
     private double MaxOffsetY => Math.Max(0, Window.Height - _viewport.Height);
 
+    private bool UsesPageScrollMap => IsPageMode && _layout.PageCount > 0;
+
+    /// <summary>페이지 단위 모드의 세로 스크롤바 범위. 레이아웃이나 화면 높이가 바뀌면 새로 만든다.</summary>
+    private PageScrollMap PageScroll
+    {
+        get
+        {
+            if (_pageScrollMap is not { } map || map.Layout != _layout || map.ViewportHeight != _viewport.Height)
+            {
+                _pageScrollMap = map = new PageScrollMap(_layout, _options.Margin, _viewport.Height);
+            }
+
+            return map;
+        }
+    }
+
     private (double X, double Y) ViewToDocument(Point p)
     {
         var window = Window;
@@ -519,7 +536,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         ScrollToPage(_layout.GetRowOfPage(target).FirstPage);
         if (toEnd && direction < 0)
         {
-            SetVerticalOffset(MaxOffsetY);
+            SetWindowOffsetY(MaxOffsetY);
         }
 
         return true;
@@ -532,7 +549,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
     {
         if (!IsPageMode)
         {
-            SetVerticalOffset(_offsetY + delta);
+            SetWindowOffsetY(_offsetY + delta);
             return;
         }
 
@@ -543,7 +560,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         }
         else
         {
-            SetVerticalOffset(_offsetY + delta);
+            SetWindowOffsetY(_offsetY + delta);
         }
     }
 
@@ -555,7 +572,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
     {
         if (!IsPageMode)
         {
-            SetVerticalOffset(_offsetY + delta);
+            SetWindowOffsetY(_offsetY + delta);
             return;
         }
 
@@ -564,7 +581,7 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         if (!atEdge)
         {
             _wheelOverscroll = 0;
-            SetVerticalOffset(_offsetY + delta);
+            SetWindowOffsetY(_offsetY + delta);
             return;
         }
 
@@ -1055,7 +1072,8 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
 
     public double ExtentWidth => Window.Width;
 
-    public double ExtentHeight => Window.Height;
+    // 페이지 단위 모드의 세로 스크롤바는 지금 줄이 아니라 문서 전체에서의 위치를 보여준다 (PageScrollMap).
+    public double ExtentHeight => UsesPageScrollMap ? PageScroll.Extent : Window.Height;
 
     public double ViewportWidth => _viewport.Width;
 
@@ -1063,7 +1081,9 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
 
     public double HorizontalOffset => _offsetX;
 
-    public double VerticalOffset => _offsetY;
+    public double VerticalOffset => UsesPageScrollMap
+        ? PageScroll.StartOf(_layout.GetRowIndexOfPage(ClampedCurrentPage)) + _offsetY
+        : _offsetY;
 
     public ScrollViewer? ScrollOwner { get; set; }
 
@@ -1119,7 +1139,30 @@ public sealed partial class PdfDocumentView : FrameworkElement, IScrollInfo
         }
     }
 
+    /// <summary>
+    /// 스크롤바(ScrollViewer)가 부르는 세로 위치 지정. 페이지 단위 모드에서는 문서 전체 기준 위치이므로,
+    /// 그 위치에 해당하는 줄로 넘어간 뒤 줄 안의 위치로 스크롤한다. 앱 안에서 지금 줄 안의 위치를 바꿀 때는
+    /// <see cref="SetWindowOffsetY"/>를 쓴다.
+    /// </summary>
     public void SetVerticalOffset(double offset)
+    {
+        if (!UsesPageScrollMap)
+        {
+            SetWindowOffsetY(offset);
+            return;
+        }
+
+        var (rowIndex, offsetInRow) = PageScroll.Locate(offset);
+        if (rowIndex != _layout.GetRowIndexOfPage(ClampedCurrentPage))
+        {
+            ScrollToPage(_layout.Rows[rowIndex].FirstPage);
+        }
+
+        SetWindowOffsetY(offsetInRow);
+    }
+
+    /// <summary>창(페이지 단위 모드에서는 지금 줄) 안에서의 세로 스크롤 위치를 바꾼다.</summary>
+    private void SetWindowOffsetY(double offset)
     {
         var old = _offsetY;
         _offsetY = offset;
