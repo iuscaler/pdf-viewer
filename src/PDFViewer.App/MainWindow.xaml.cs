@@ -391,6 +391,17 @@ public partial class MainWindow : Window
 
     private void OnPageNumberGotFocus(object sender, KeyboardFocusChangedEventArgs e) => PageNumberBox.SelectAll();
 
+    // 처음 클릭하면 숫자 전체를 선택해서 바로 새 페이지 번호를 입력할 수 있게 한다.
+    // 그대로 두면 클릭 위치로 커서가 옮겨지면서 GotKeyboardFocus에서 한 전체 선택이 풀린다.
+    private void OnPageNumberPreviewMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (!PageNumberBox.IsKeyboardFocusWithin)
+        {
+            PageNumberBox.Focus();
+            e.Handled = true;
+        }
+    }
+
     private void OnDragOver(object sender, DragEventArgs e)
     {
         e.Effects = GetDroppedPdf(e) is null ? DragDropEffects.None : DragDropEffects.Copy;

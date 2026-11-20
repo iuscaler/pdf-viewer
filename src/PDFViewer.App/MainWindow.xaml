@@ -263,11 +263,12 @@
                             ToolTip="이전 페이지">
                         <TextBlock Style="{StaticResource IconTextStyle}" Text="&#xE70E;" />
                     </Button>
-                    <TextBox x:Name="PageNumberBox" Width="44" Height="26" VerticalContentAlignment="Center"
-                             HorizontalContentAlignment="Center" Margin="2,0"
+                    <TextBox x:Name="PageNumberBox" Style="{StaticResource PlainTextBoxStyle}"
+                             Width="44" Height="26" TextAlignment="Center" Margin="2,0"
                              IsEnabled="{Binding IsDocumentOpen}"
                              Text="{Binding CurrentPageNumber}"
                              KeyDown="OnPageNumberKeyDown" GotKeyboardFocus="OnPageNumberGotFocus"
+                             PreviewMouseLeftButtonDown="OnPageNumberPreviewMouseDown"
                              ToolTip="페이지 번호를 입력하고 Enter" />
                     <TextBlock VerticalAlignment="Center" Margin="4,0" Foreground="#5A5A5A"
                                Text="{Binding PageCount, StringFormat='/ {0}'}" />

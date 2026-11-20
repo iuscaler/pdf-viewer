@@ -153,6 +153,46 @@
             </Ellipse>
         </DataTemplate>
 
+        <!-- 지우기(X) 버튼이 없는 단순한 입력란 (페이지 번호처럼 좁은 칸).
+             Windows 11 테마의 입력란은 글자가 있으면 X 버튼이 붙어서 좁은 칸에서는 숫자를 가린다. -->
+        <Style x:Key="PlainTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#D0D0D0" />
+            <Setter Property="Foreground" Value="#1A1A1A" />
+            <Setter Property="Padding" Value="2,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Grid>
+                            <Border x:Name="Bd" CornerRadius="4" BorderThickness="1"
+                                    Background="{TemplateBinding Background}"
+                                    BorderBrush="{TemplateBinding BorderBrush}">
+                                <ScrollViewer x:Name="PART_ContentHost" Focusable="False" VerticalAlignment="Center"
+                                              Margin="{TemplateBinding Padding}"
+                                              HorizontalScrollBarVisibility="Hidden"
+                                              VerticalScrollBarVisibility="Hidden" />
+                            </Border>
+                            <!-- 입력 중이면 아래쪽에 파란 선 (Windows 11 입력란처럼) -->
+                            <Border x:Name="Underline" Height="2" VerticalAlignment="Bottom" Margin="1,0"
+                                    CornerRadius="0,0,4,4" Background="#0067C0" Visibility="Collapsed" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#F9F9F9" />
+                            </Trigger>
+                            <Trigger Property="IsKeyboardFocused" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="White" />
+                                <Setter TargetName="Underline" Property="Visibility" Value="Visible" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="ToolSeparatorStyle" TargetType="Border">
             <Setter Property="Width" Value="1" />
             <Setter Property="Height" Value="20" />
